@@ -5,12 +5,14 @@
     python verify_project.py --project /path/to/my-app [--test]
 
 检查项（全部通过输出 PASS，否则逐条列出 FAIL）:
-  1. 结构完整性 —— 必需文件全部存在（含核心/各端/契约流水线）
+  1. 结构完整性 —— 必需文件全部存在（含核心/各端/契约流水线/设计决策记录）
   2. 核心纯净性 —— packages/core 源码禁止 import 任何框架
      (fastapi/sqlalchemy/typer/uvicorn/httpx/requests/pydantic/flask/django/starlette/rich/click/aiohttp)
      这是"一核多端"的铁律: 核心只依赖标准库
   3. 依赖方向性 —— 各端依赖核心(core)，核心不得反向依赖任何端
-  4. 测试通过性 —— (--test) 运行 uv run pytest packages/core/tests
+  4. Token 引用闭合 —— web 端引用的 var(--x) 必须在 tokens.css(或本文件)定义,
+     防止"样式残缺但不报错"的隐性破损(真实事故: tokens.css 缺 --space-5 等)
+  5. 测试通过性 —— (--test) 运行 uv run pytest packages/core/tests
 """
 from __future__ import annotations
 
@@ -31,13 +33,13 @@ def check_manifest(root: Path, pkg: str) -> list[str]:
         f"packages/core/src/{pkg}_core/__init__.py",
         f"packages/core/src/{pkg}_core/domain/__init__.py",
         f"packages/core/src/{pkg}_core/application/__init__.py",
-        f"packages/core/tests/test_task.py",
         "apps/server/pyproject.toml",
         "apps/server/src/server/main.py",
         "apps/server/src/server/routes/__init__.py",
         "apps/cli/pyproject.toml",
         "apps/web/package.json", "apps/web/vite.config.ts",
         "apps/web/src/styles/tokens.css",
+        "docs/design-decisions.md",   # 阶段 3.5 设计包流程的必产物(决策可追溯)
         "apps/desktop/main.py" if (root / "apps/desktop/main.py").exists()
         else "apps/desktop/main.js",
         "packages/sdk/generate.mjs",
@@ -46,6 +48,10 @@ def check_manifest(root: Path, pkg: str) -> list[str]:
         "docker-compose.yml", ".env.example",
     ]
     missing = [p for p in required if not (root / p).exists()]
+    # 测试目录至少要有一个测试文件(具体文件名随业务命名,不硬编码)
+    tests_dir = root / "packages/core/tests"
+    if not (tests_dir.is_dir() and any(tests_dir.glob("test_*.py"))):
+        missing.append("packages/core/tests/test_*.py")
     return [f"缺少必需文件: {p}" for p in missing]
 
 
@@ -95,6 +101,37 @@ def check_dep_direction(root: Path) -> list[str]:
     return fails
 
 
+_VAR_REF = re.compile(r"var\(\s*(--[\w-]+)")
+_VAR_DEF = re.compile(r"^\s*(--[\w-]+)\s*:", re.MULTILINE)
+
+
+def check_token_closure(root: Path) -> list[str]:
+    """web 端引用的每个 var(--x) 必须有定义(tokens.css 或引用所在文件)。
+
+    背景: 该类破损不报错、不崩构建——页面只是"安静地变丑/残缺",
+    人工 review 极易漏检,必须机器判定。
+    """
+    web_src = root / "apps/web/src"
+    if not web_src.is_dir():
+        return []
+    tokens = web_src / "styles/tokens.css"
+    defined: set[str] = set()
+    if tokens.exists():
+        defined |= set(_VAR_DEF.findall(tokens.read_text(encoding="utf-8")))
+    fails: list[str] = []
+    for f in [*web_src.rglob("*.css"), *web_src.rglob("*.vue")]:
+        if not f.is_file():
+            continue
+        text = f.read_text(encoding="utf-8")
+        local_defs = set(_VAR_DEF.findall(text))
+        for name in set(_VAR_REF.findall(text)):
+            if name not in defined and name not in local_defs:
+                fails.append(
+                    f"Token 引用未定义: {f.relative_to(root)} 引用 {name}"
+                    f"(tokens.css 缺该变量)")
+    return fails
+
+
 def check_tests(root: Path) -> list[str]:
     import subprocess
     r = subprocess.run(
@@ -124,6 +161,7 @@ def main() -> int:
     fails += check_manifest(root, pkg)
     fails += check_core_purity(root, pkg)
     fails += check_dep_direction(root)
+    fails += check_token_closure(root)
     if args.test:
         fails += check_tests(root)
 
@@ -134,7 +172,7 @@ def main() -> int:
         for f in fails:
             print(f"  ✗ {f}")
         return 1
-    print("\nPASS — 结构完整、核心纯净、依赖方向正确" + ("、测试通过" if args.test else ""))
+    print("\nPASS — 结构完整、核心纯净、依赖方向正确、Token 闭合" + ("、测试通过" if args.test else ""))
     return 0
 
 

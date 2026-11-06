@@ -49,7 +49,30 @@
       "expectations": [
         "按 frontend-design → theme-factory → ui-ux-pro-max → 动效 → impeccable 顺序",
         "颜色字号只写入 apps/web/src/styles/tokens.css，不硬编码进组件",
-        "引用 references/design/README.md 的防冲突约束"
+        "引用 references/design/README.md 的防冲突约束",
+        "产出或更新 docs/design-decisions.md 设计决策记录"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "这是我的旧项目 D:/legacy/signin-kit，功能不变，用一核多端架构帮我重写",
+      "expected_output": "先产出功能→归属映射表，按 migration.md 五步流程移植：领域词汇与编排语义进 core，技术能力留适配器",
+      "expectations": [
+        "先分析旧项目功能并产出功能→归属映射表（docs/migration-notes.md），而不是直接整体搬运旧代码",
+        "结果词汇枚举+分类谓词进 core domain，并提供唯一翻译入口",
+        "硬承诺类规则（如试运行只报告不执行）在 core 用例层强制，适配器不支持时拒绝而非静默降级",
+        "识别并避免薄壳反模式（core 只剩循环汇总、业务规则散落外圈）",
+        "移植后运行 verify_project.py --test 并执行端零映射检查"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "生成的项目页面样式看起来不完整，有些间距和颜色没生效",
+      "expected_output": "定位为 token 引用未定义（引用的 var(--x) 不在 tokens.css），运行 verify_project.py 检查项 4 并补全 tokens.css",
+      "expectations": [
+        "运行 scripts/verify_project.py 看 Token 引用闭合检查结果",
+        "解释该类破损不报错不崩构建、页面安静变丑的特征",
+        "在 tokens.css 补全缺失定义而非在组件里硬编码色值"
       ]
     }
   ]

@@ -3,7 +3,7 @@ name: cross-platform-arch
 description: 「一核多端」统一应用架构设计与落地技能。当用户要设计、搭建或评审支持 CLI、Web、桌面、小程序、App（甚至 H5）多端的软件应用架构，要为新业务/新系统选 Python 技术栈、搭 Monorepo 脚手架、打通 OpenAPI 契约到各端类型化 SDK、做可演示原型，或问"多端架构怎么搭/一套代码多端运行/跨端技术选型/桌面端用 Electron 还是 pywebview/小程序框架选型"时使用本技能。输出可操作、可拆解、可演示、可复用的架构方案与脚手架。不用于：纯单端小工具、纯运维部署问题。
 license: MIT
 metadata:
-  version: "1.5.1"
+  version: "1.6.0"
   date: "2026-11-06"
   author: WorkBuddy Agent
 ---
@@ -41,13 +41,17 @@ python <skill目录>/scripts/scaffold.py --name my-app --dir /path/to/my-app
 
 生成内容：`apps/server`（FastAPI）、`apps/cli`（Typer）、`apps/web`（Vue3+Vite）、`apps/desktop`（pywebview 壳，或 `--desktop electron` 时生成 Electron 主进程 + sidecar 入口）、`apps/uniapp`（小程序+App 占位）、`packages/core`（六边形分层核心）、`packages/sdk`（OpenAPI 生成脚本）、docker-compose、CI 配置。结构与关键文件说明见 `references/scaffold.md`。
 
+### 阶段 2.5：存量项目移植（可选——把已有项目的功能迁入本架构时必读）
+
+"把旧项目功能用新架构实现"**不等于**把旧代码整体搬进适配器层。必须先产出功能→归属映射表，把领域词汇（结果枚举+分类谓词）、编排语义（硬承诺/空集/校验）提取进 core，技术能力才留适配器；否则 core 会退化成薄壳，业务规则散落外圈。五步流程与"薄壳反模式"对照见 `references/migration.md`——移植类项目在阶段 4 验收时额外执行其"端零映射"检查。
+
 **生成后必须立即验证**（把架构约束交给机器判定）：
 
 ```bash
 python <skill目录>/scripts/verify_project.py --project /path/to/my-app --test
 ```
 
-检查项：① 结构完整性（pywebview 43 个/electron 45 个必需文件）② 核心纯净性（packages/core 禁止 import 任何框架——"一核多端"铁律）③ 依赖方向性（核心不得反向依赖任何端）④ 核心测试通过。任何一项 FAIL 必须先修复再进入阶段 3。产出约束与质量门禁清单见 `references/output-spec.md`。
+检查项：① 结构完整性（含设计决策记录 `docs/design-decisions.md`）② 核心纯净性（packages/core 禁止 import 任何框架——"一核多端"铁律）③ 依赖方向性（核心不得反向依赖任何端）④ Token 引用闭合（web 引用的 var(--x) 必须在 tokens.css 定义——样式残缺不报错，必须机器判定）⑤ 核心测试通过。任何一项 FAIL 必须先修复再进入阶段 3。产出约束与质量门禁清单见 `references/output-spec.md`。
 
 ### 阶段 3：跑通演示链路
 
@@ -58,7 +62,7 @@ python <skill目录>/scripts/verify_project.py --project /path/to/my-app --test
 4. 小程序/App：HBuilderX 运行到模拟器，同一列表
 5. 修改核心包一处业务规则 → 所有端行为同时变化（证明"一核"）
 
-### 阶段 3.5：设计系统生成（前端不止于"能用"）
+### 阶段 3.5：设计系统生成（前端不止于"能用"——必执行,不许跳过）
 
 内置设计能力包（`references/design/`，均为 MIT 许可的提示词知识库），**严格按加载顺序**执行：
 1. `frontend-design/` 定审美方向与字体人格（反模板化）
@@ -67,7 +71,11 @@ python <skill目录>/scripts/verify_project.py --project /path/to/my-app --test
 4. `improve-animations/`（可选）关键交互动效，尊重 prefers-reduced-motion
 5. impeccable 精修（**未内置**，仓库无 LICENSE；需要时运行 `scripts/install_impeccable.sh` 按需克隆后 `/audit` → `/polish`）
 
-防冲突硬约束（token 唯一来源、theme-factory 不碰布局、impeccable 只在最后）见 `references/design/README.md`。产出物：tokens.css + `docs/design-decisions.md`（设计决策记录）。uni-app 端仅同步颜色/字号变量。
+**必产物（缺一即 FAIL，verify 会查）**：
+- `apps/web/src/styles/tokens.css` —— 颜色/字体/间距/字号 token 全量定义；组件与样式表引用的每个 `var(--x)` 必须在此（或本文件）有定义（verify 检查项 4）
+- `docs/design-decisions.md` —— 设计决策记录（主题定位/配色出处/字体/布局/动效/可访问性），保证审美选择是"决策"而非"默认"
+
+防冲突硬约束（token 唯一来源、theme-factory 不碰布局、impeccable 只在最后）见 `references/design/README.md`。uni-app 端仅同步颜色/字号变量。
 
 ### 阶段 4：验收 + 复用评估
 
@@ -92,7 +100,8 @@ python <skill目录>/scripts/verify_project.py --project /path/to/my-app --test
 - `references/architecture.md` — 完整架构设计（分层职责、依赖规则、离线/在线双模式、扩展点）
 - `references/tech-stack.md` — 技术选型调研结论（附公开资料来源，2026-11 调研）
 - `references/scaffold.md` — Monorepo 目录结构与关键文件逐个说明
-- `references/output-spec.md` — 产出规范：43/45 文件清单、四条硬约束、运行时验收证据链
+- `references/output-spec.md` — 产出规范：文件清单、硬约束、运行时验收证据链
+- `references/migration.md` — 存量项目移植规范：功能归属映射、领域词汇提取、薄壳反模式对照（真实事故复盘）
 - `references/anthropic-patterns.md` — anthropics/skills 官方模式拆解（放置/调用/整合/评测）与本 skill 对照
 - `references/playbook.md` — 分阶段实施计划、演示脚本、验收清单
 - `references/reuse.md` — 新业务/新系统复用指南
