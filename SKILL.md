@@ -3,8 +3,8 @@ name: cross-platform-arch
 description: 「一核多端」统一应用架构设计与落地技能。当用户要设计、搭建或评审支持 CLI、Web、桌面、小程序、App（甚至 H5）多端的软件应用架构，要为新业务/新系统选 Python 技术栈、搭 Monorepo 脚手架、打通 OpenAPI 契约到各端类型化 SDK、做可演示原型，或问"多端架构怎么搭/一套代码多端运行/跨端技术选型/桌面端用 Electron 还是 pywebview/小程序框架选型"时使用本技能。输出可操作、可拆解、可演示、可复用的架构方案与脚手架。不用于：纯单端小工具、纯运维部署问题。
 license: MIT
 metadata:
-  version: "1.6.0"
-  date: "2026-11-06"
+  version: "1.7.1"
+  date: "2026-11-07"
   author: WorkBuddy Agent
 ---
 
@@ -98,6 +98,8 @@ python <skill目录>/scripts/verify_project.py --project /path/to/my-app --test
 ## 参考文件
 
 - `references/architecture.md` — 完整架构设计（分层职责、依赖规则、离线/在线双模式、扩展点）
+- `references/hexagonal-arch.md` — 六边形架构规约（R1-R9 规则 + verify 门禁映射 + 阿里 COLA/《Java 开发手册》对照）
+- `references/clients.md` — apps/ 多端规约（薄壳纪律、端间关系矩阵、共享代码下沉规则、多端一致性验收）
 - `references/tech-stack.md` — 技术选型调研结论（附公开资料来源，2026-11 调研）
 - `references/scaffold.md` — Monorepo 目录结构与关键文件逐个说明
 - `references/output-spec.md` — 产出规范：文件清单、硬约束、运行时验收证据链

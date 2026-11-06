@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.7.1 (2026-11-07)
+
+- **verify 新增契约新鲜度门禁(check_sdk_freshness)**: generate.mjs 生成时写入
+  openapi.json 的 sha256 指纹(src/gen/openapi.sha256),verify 重算比对——"改了后端
+  没重新生成 SDK"当场 FAIL。已用注入测试验证: 给 response_model 加一字段即触发
+  "契约漂移"。manifest 同步要求 schema.d.ts 与 openapi.sha256 入库。
+  背景: generate.mjs 曾躺平数周未被任何检查发现——文件存在 ≠ 流程生效。
+
+## 1.7.0 (2026-11-07)
+
+open-work-kit 包结构审计（旧项目平移 vs 框架原生）暴露的规范缺口补齐：
+
+- **新增 references/hexagonal-arch.md（六边形架构规约）**：R1-R9 带编号规则清单，
+  每条标注验证方式与豁免流程（design-decisions 留痕）；分层拓扑与阿里 COLA
+  （adapter/app+domain/infrastructure/client/start）逐层对照，模型分层 DO/DTO/VO
+  对照《阿里巴巴 Java 开发手册》§分层领域模型。engine 出站适配器按**能力词汇**命名
+  （signin/ledger/scheduling/adapters/declarative/extensions），禁止旧业务目录名平移
+  （真实案例：kit/domainsignin/scheduledomain 平移改名后仍读不出架构语义，二次重排）。
+- **新增 references/clients.md（apps/ 多端规约）**：端=三件事（协议转换/呈现/端能力桥接）
+  的薄壳纪律；端间关系矩阵（唯一豁免：desktop 内嵌 server 启动装配）；共享代码
+  "三处同构必须下沉"分流表（语义→core / 契约→sdk / 能力→engine）；各端目录模板与
+  附加纪律；多端一致性验收门禁（幂等/dry_run 语义全端一致）。
+- **verify_project.py 新增检查：六边形桥闭合（check_hexagonal）**——①引擎必须有
+  bridge.py 唯一出桥；②各端只许 `from <engine>.bridge import`，直接触达引擎内部
+  子包即 FAIL；③端间禁止互相 import（desktop→server 白名单）。理由：此类违规不崩
+  构建，数月后才以语义漂移形式爆发。
+- SKILL.md 参考文件挂载两份新规约。
+- 经验教训沉淀：文件存在 ≠ 流程生效（generate.mjs 躺平未被 verify 发现 →
+  manifest 增加 schema.d.ts 生成物检查）；设计决策文档必须随主题变更同步升版。
+
 ## 1.6.0 (2026-11-06)
 
 真实落地项目（open-work-kit）运行调试暴露的 skill 缺口集中修复：
