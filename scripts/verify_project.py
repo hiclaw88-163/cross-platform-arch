@@ -43,6 +43,8 @@ def check_manifest(root: Path, pkg: str) -> list[str]:
         "apps/desktop/main.py" if (root / "apps/desktop/main.py").exists()
         else "apps/desktop/main.js",
         "packages/sdk/generate.mjs",
+        "packages/sdk/src/gen/schema.d.ts",  # 契约产物必须随仓库走
+        "packages/sdk/src/gen/openapi.sha256",  # 契约指纹(新鲜度门禁比对基准)
         "scripts/verify_project.py",
         ".github/workflows/ci.yml",
         "docker-compose.yml", ".env.example",
@@ -101,6 +103,56 @@ def check_dep_direction(root: Path) -> list[str]:
     return fails
 
 
+# 端间互触白名单: desktop 允许 import server 的启动装配入口(离线模式内嵌 uvicorn),
+# 这是六边形拓扑里唯一的端间豁免(见 references/clients.md §2 关系矩阵)。
+_END_IMPORT_WHITELIST = {"desktop": {"server"}}
+
+
+def check_hexagonal(root: Path) -> list[str]:
+    """六边形门禁(规约 R4 + 端间隔离,见 references/hexagonal-arch.md):
+
+    1. 引擎必须提供 bridge.py 作为唯一出桥模块;
+    2. 各端只允许 `from <engine>.bridge import ...` 触达引擎,
+       直接 import 引擎内部子包即违规;
+    3. 端之间禁止互相 import(白名单除外)。
+    该类违规不崩构建——只是让"一核多端"退化成"多核各自为政",
+    依赖方向错误会在数月后才以语义漂移的形式爆发,必须机器拦截。
+    """
+    eng_src = root / "packages/engine/src"
+    ends_root = root / "apps"
+    if not eng_src.is_dir() or not ends_root.is_dir():
+        return []
+    inner = [d.name for d in eng_src.iterdir()
+             if d.is_dir() and (d / "__init__.py").exists()]
+    if not inner:
+        return []
+    engpkg = inner[0]
+    fails: list[str] = []
+    if not (eng_src / engpkg / "bridge.py").exists():
+        fails.append(f"引擎缺少 {engpkg}/bridge.py——端与引擎之间必须有唯一六边形桥")
+    import re
+    eng_imp = re.compile(
+        rf"^\s*(?:from|import)\s+{engpkg}(?:\s+import\s+(\w+)|\.([\w.]+))", re.M)
+    end_names = [d.name for d in ends_root.iterdir() if d.is_dir()]
+    for end in end_names:
+        for f in (ends_root / end).rglob("*.py"):
+            text = f.read_text(encoding="utf-8", errors="ignore")
+            for m in eng_imp.finditer(text):
+                mod = m.group(1) or (m.group(2).split(".")[0] if m.group(2) else "")
+                if mod and mod != "bridge":
+                    fails.append(
+                        f"{f.relative_to(root)} 直接 import {engpkg}.{mod}"
+                        f"——端只允许经 {engpkg}.bridge 触达引擎(规约 R4)")
+            for other in end_names:
+                if other == end or other in _END_IMPORT_WHITELIST.get(end, ()):
+                    continue
+                if re.search(rf"^\s*(?:from|import)\s+{other}\b", text, re.M):
+                    fails.append(
+                        f"{f.relative_to(root)} import 了端 {other}"
+                        "——端之间禁止互相引用(见 clients.md §2 关系矩阵)")
+    return fails
+
+
 _VAR_REF = re.compile(r"var\(\s*(--[\w-]+)")
 _VAR_DEF = re.compile(r"^\s*(--[\w-]+)\s*:", re.MULTILINE)
 
@@ -132,6 +184,37 @@ def check_token_closure(root: Path) -> list[str]:
     return fails
 
 
+
+def check_sdk_freshness(root: Path) -> list[str]:
+    """契约新鲜度门禁: 重算 server 契约指纹,与 packages/sdk 生成时记录的比对。
+
+    背景(真实事故): generate.mjs 存在却从未被执行,manifest 只查文件存在性,
+    前端类型与后端契约静默漂移。此检查让"改了后端没重新生成 SDK"当场 FAIL。
+    指纹 = `print(json.dumps(app.openapi()))` 输出的 sha256,
+    由 generate.mjs 在生成时写入 src/gen/openapi.sha256。
+    """
+    gen_dir = root / "packages/sdk/src/gen"
+    if not (gen_dir / "schema.d.ts").exists():
+        return []  # 缺产物由结构完整性检查负责
+    import hashlib
+    import subprocess
+    probe = ("uv run python -c "
+             '"import json; from server.main import app; '
+             'print(json.dumps(app.openapi()))"')
+    r = subprocess.run(probe, shell=True, cwd=root,
+                       capture_output=True, text=True, timeout=300)
+    if r.returncode != 0:
+        tail = (r.stderr.strip().splitlines() or ["导出失败"])[-1]
+        return [f"无法从 server.main 导出 openapi.json,契约新鲜度不可验证: {tail}"]
+    current = hashlib.sha256(r.stdout.encode()).hexdigest()
+    hash_file = gen_dir / "openapi.sha256"
+    if not hash_file.exists():
+        return ["缺少 packages/sdk/src/gen/openapi.sha256——运行 gen:sdk 记录契约指纹"]
+    if hash_file.read_text(encoding="utf-8").strip() != current:
+        return ["契约漂移: server 契约已变更但 SDK 未重新生成——运行 gen:sdk 后重试"]
+    return []
+
+
 def check_tests(root: Path) -> list[str]:
     import subprocess
     r = subprocess.run(
@@ -161,7 +244,9 @@ def main() -> int:
     fails += check_manifest(root, pkg)
     fails += check_core_purity(root, pkg)
     fails += check_dep_direction(root)
+    fails += check_hexagonal(root)
     fails += check_token_closure(root)
+    fails += check_sdk_freshness(root)
     if args.test:
         fails += check_tests(root)
 
@@ -172,7 +257,7 @@ def main() -> int:
         for f in fails:
             print(f"  ✗ {f}")
         return 1
-    print("\nPASS — 结构完整、核心纯净、依赖方向正确、Token 闭合" + ("、测试通过" if args.test else ""))
+    print("\nPASS — 结构完整、核心纯净、依赖方向正确、六边形桥闭合、Token 闭合、契约新鲜" + ("、测试通过" if args.test else ""))
     return 0
 
 
