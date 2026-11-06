@@ -529,7 +529,7 @@ def make_repo(remote: bool) -> TaskRepository:
   "type": "module",
   "scripts": {{
     "dev": "vite",
-    "build": "vue-tsc -b && vite build"
+    "build": "vue-tsc --noEmit && vite build"
   }},
   "dependencies": {{
     "vue": "^3.5.0"
@@ -541,6 +541,21 @@ def make_repo(remote: bool) -> TaskRepository:
     "vue-tsc": "^2.1.0"
   }}
 }}
+''',
+        "apps/web/tsconfig.json": '''{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "jsx": "preserve",
+    "types": ["vite/client"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue"]
+}
 ''',
         "apps/web/vite.config.ts": '''import vue from "@vitejs/plugin-vue";
 import { defineConfig } from "vite";

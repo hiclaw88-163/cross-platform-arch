@@ -1,6 +1,23 @@
 # Changelog
 
+## 1.6.0 (2026-11-06)
+
+真实落地项目（open-work-kit）运行调试暴露的 skill 缺口集中修复：
+
+- **新增 references/migration.md（存量项目移植规范）**：真实事故复盘——旧引擎 8k 行整体搬进适配器层、core 只剩 195 行薄壳，业务规则散落外圈，导致"dry_run 试运行静默降级成真实执行"缺陷。规范给出搬运 vs 移植对照、五步流程（功能清单分析→领域词汇提取→编排语义上移→技术能力留适配器→端零映射验收）、机器可查红线。SKILL.md 新增阶段 2.5 挂载。
+- **verify_project.py 新增检查项 4：Token 引用闭合**——web 端引用的每个 `var(--x)` 必须在 tokens.css（或引用所在文件）定义。真实事故：tokens.css 缺 `--space-5/--font-size-*/--color-accent` 等被引用的 token，样式残缺但零报错，页面"安静地变丑"。manifest 同步加 `docs/design-decisions.md`（阶段 3.5 必产物）。
+- **阶段 3.5 设计包流程升级为"必执行，不许跳过"**：tokens.css 全量 token + design-decisions.md 列为必产物（缺一 verify FAIL）——此前只在注释里"建议"，真实项目生成时被跳过。
+- **evals.json 5→7**：新增"移植类任务必须产出映射表且防薄壳"（id 6）与"样式不完整→token 闭合诊断"（id 7）两条评测。
+- SKILL.md 版本 1.6.0；output-spec.md 产出清单补 design-decisions.md、新增 C5（Token 闭合）/C6（语义决策只在一处）硬约束。
+
+## 1.5.2 (2026-11-06)
+
+- **修复 web 模板缺 tsconfig.json**(真实项目首次 pnpm build:web 即挂,CI 同样会挂): 模板新增标准 tsconfig;build 脚本 `vue-tsc -b`(需 project references)改为 `vue-tsc --noEmit`
+- **修复 verify_project.py manifest 硬编码演示文件名** `test_task.py`: 改为"tests 目录至少一个 test_*.py"(真实项目重命名领域模块后误报缺文件)
+- 首个真实落地项目验证: open-work-kit(auto-signin-kit 功能移植)——生成→engine 扩展包→verify PASS→web build PASS→CLI/Server/看板全链路实测
+
 ## 1.5.1 (2026-11-06)
+
 
 - 全量复检发现并修复 6 个问题（2 个会直接跑挂）：
   - **CI 必挂**：`pnpm install --frozen-lockfile` 在无 pnpm-lock.yaml 时报错——改为 `pnpm install` 并注释 lockfile 提交策略

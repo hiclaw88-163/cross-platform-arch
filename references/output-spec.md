@@ -21,6 +21,7 @@
 | | `apps/server/Dockerfile` | 镜像构建 |
 | CLI | `apps/cli/src/cli/main.py` / `repo.py` | Typer 命令；local 模式用自带 stdlib sqlite3 适配器（零框架） |
 | 自检 | `scripts/verify_project.py` | 随产物分发的架构自检器（CI verify 步骤依赖） |
+| 设计 | `docs/design-decisions.md` | 设计决策记录（阶段 3.5 设计包流程必产物；verify 清单含此项） |
 | Web | `apps/web/src/App.vue` / `main.ts` / `styles/tokens.css` / `vite.config.ts` | Vue3 页面 + 设计 token（唯一颜色来源） |
 | 桌面 | `apps/desktop/main.py`（pywebview）或 `main.js` + `apps/server/sidecar_entry.py`（Electron） | 壳，加载 web 构建产物 |
 | 小程序/App | `apps/uniapp/src/api/request.ts` + README | uni-app 请求封装与运行说明 |
@@ -44,12 +45,18 @@
 ### C4 测试通过
 `uv run pytest packages/core/tests` 必须绿。业务规则（如"标题≥2字"）要有核心层单测覆盖。
 
+### C5 Token 引用闭合（样式残缺是隐性破损）
+web 端（App.vue / styles/*.css）引用的每个 `var(--x)` 必须在 `tokens.css` 或引用所在文件中有定义。该类破损不报错、不崩构建，页面只是"安静地变丑"——人工 review 极易漏检，由 verify 检查项 4 机器判定。
+
+### C6 语义决策只在一处（移植类项目重点）
+结果词汇枚举+分类谓词、硬承诺规则（如 dry_run 只报告不领取）、空集语义、目标校验——只写在 core（domain/application）；bridge/路由/端零映射表、零语义决策。适配器只做形状转换与能力申报。对照检查见 `references/migration.md` 的"薄壳反模式"表。
+
 ## 3. 运行时验收（生成的项目开箱即用的证据链）
 
 ```bash
 # 1. 结构 + 约束 + 单测（一条命令）
 python verify_project.py --project . --test
-# 期望: PASS — 结构完整、核心纯净、依赖方向正确、测试通过
+# 期望: PASS — 结构完整、核心纯净、依赖方向正确、Token 闭合、测试通过
 
 # 2. server 全链路（根目录直接跑，workspace 已装 server/cli）
 uv run uvicorn server.main:app --port 8000
