@@ -1,0 +1,56 @@
+{
+  "skill_name": "cross-platform-arch",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我要做一个团队待办事项应用，需要 CLI、Web、桌面端三端，Python 技术栈，帮我搭起来",
+      "expected_output": "生成 Monorepo 骨架（core/server/cli/web/desktop），并通过 verify_project.py 验证",
+      "expectations": [
+        "先运行 scaffold.py 生成项目而非手写全部文件",
+        "生成的 packages/core 不 import 任何框架",
+        "运行 verify_project.py 且结果为 PASS",
+        "说明 CLI 进程内直调核心、桌面端为壳的通信方式"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "桌面端用 Electron 还是 pywebview？给我选型依据",
+      "expected_output": "基于体积/内存/生态/团队栈的对比结论，并指向 --desktop electron 切换能力",
+      "expectations": [
+        "给出默认 pywebview、需要自动更新/托盘/深度集成时选 Electron 的明确结论",
+        "提到 Electron 离线模式为 Python sidecar（端口握手 + /health 轮询）",
+        "说明两壳可共存可切换，核心层零改动"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "新项目想复用这套架构，已有的旧业务代码怎么迁移进来",
+      "expected_output": "换芯不换壳：业务逻辑下沉 packages/core，端侧改造成适配器",
+      "expectations": [
+        "给出 core 迁移步骤（domain/application/ports 三层归位）",
+        "强调旧代码中的框架调用不得进入 core",
+        "引用 references/reuse.md 的复用流程"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "生成的项目怎么检查是否符合架构要求？",
+      "expected_output": "一条命令 verify_project.py，四类检查项 + 运行时验收链",
+      "expectations": [
+        "运行 scripts/verify_project.py --project <目录> --test",
+        "说明四条硬约束：结构完整/核心纯净/依赖方向/测试通过",
+        "指出 output-spec.md 为产出规范来源"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "页面太丑了，帮我把生成项目的视觉升级一下",
+      "expected_output": "按设计能力包五步加载顺序执行，产出只改 tokens.css + design-decisions.md",
+      "expectations": [
+        "按 frontend-design → theme-factory → ui-ux-pro-max → 动效 → impeccable 顺序",
+        "颜色字号只写入 apps/web/src/styles/tokens.css，不硬编码进组件",
+        "引用 references/design/README.md 的防冲突约束"
+      ]
+    }
+  ]
+}
