@@ -225,6 +225,29 @@ def check_tests(root: Path) -> list[str]:
     return [] if r.returncode == 0 else [f"核心测试未通过: {tail[0]}"]
 
 
+def check_empty_packages(root: Path) -> list[str]:
+    """检查: 源码树里不许留空目录(改名/重构残留的死包)。
+
+    2026-11-07 真实事故(open-work-kit): 重构把 ``owk_engine/store`` 改名
+    ``ledger``,旧目录被清空但目录还在。Python 3 会把它当成**命名空间包**,
+    于是 ``from owk_engine import store`` 不报错、里面却什么都没有 ——
+    ``AttributeError`` 落到 best-effort 的 ``except`` 里被吞,整天的台账
+    静默丢失,dashboard 一片空白而 CLI 输出一切正常。
+
+    "空目录让导入假成功"会把断链伪装成健康,必须在自检里拦下。
+    """
+    fails: list[str] = []
+    for src in sorted(p for p in (root / "packages").glob("*/src") if p.is_dir()):
+        for d in sorted(p for p in src.rglob("*") if p.is_dir()):
+            if "__pycache__" in d.parts:
+                continue
+            files = [f for f in d.rglob("*")
+                     if f.is_file() and "__pycache__" not in f.parts]
+            if not files:
+                fails.append(f"空包目录(改名/重构残留?): {d.relative_to(root)}")
+    return fails
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--project", required=True, help="生成的项目根目录")
@@ -247,6 +270,7 @@ def main() -> int:
     fails += check_hexagonal(root)
     fails += check_token_closure(root)
     fails += check_sdk_freshness(root)
+    fails += check_empty_packages(root)
     if args.test:
         fails += check_tests(root)
 
@@ -257,7 +281,7 @@ def main() -> int:
         for f in fails:
             print(f"  ✗ {f}")
         return 1
-    print("\nPASS — 结构完整、核心纯净、依赖方向正确、六边形桥闭合、Token 闭合、契约新鲜" + ("、测试通过" if args.test else ""))
+    print("\nPASS — 结构完整、核心纯净、依赖方向正确、六边形桥闭合、Token 闭合、契约新鲜、无空包残留" + ("、测试通过" if args.test else ""))
     return 0
 
 

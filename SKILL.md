@@ -3,7 +3,7 @@ name: cross-platform-arch
 description: 「一核多端」统一应用架构设计与落地技能。当用户要设计、搭建或评审支持 CLI、Web、桌面、小程序、App（甚至 H5）多端的软件应用架构，要为新业务/新系统选 Python 技术栈、搭 Monorepo 脚手架、打通 OpenAPI 契约到各端类型化 SDK、做可演示原型，或问"多端架构怎么搭/一套代码多端运行/跨端技术选型/桌面端用 Electron 还是 pywebview/小程序框架选型"时使用本技能。输出可操作、可拆解、可演示、可复用的架构方案与脚手架。不用于：纯单端小工具、纯运维部署问题。
 license: MIT
 metadata:
-  version: "1.7.1"
+  version: "1.7.2"
   date: "2026-11-07"
   author: WorkBuddy Agent
 ---
@@ -51,7 +51,7 @@ python <skill目录>/scripts/scaffold.py --name my-app --dir /path/to/my-app
 python <skill目录>/scripts/verify_project.py --project /path/to/my-app --test
 ```
 
-检查项：① 结构完整性（含设计决策记录 `docs/design-decisions.md`）② 核心纯净性（packages/core 禁止 import 任何框架——"一核多端"铁律）③ 依赖方向性（核心不得反向依赖任何端）④ Token 引用闭合（web 引用的 var(--x) 必须在 tokens.css 定义——样式残缺不报错，必须机器判定）⑤ 核心测试通过。任何一项 FAIL 必须先修复再进入阶段 3。产出约束与质量门禁清单见 `references/output-spec.md`。
+检查项：① 结构完整性（含设计决策记录 `docs/design-decisions.md`）② 核心纯净性（packages/core 禁止 import 任何框架——"一核多端"铁律）③ 依赖方向性（核心不得反向依赖任何端）④ Token 引用闭合（web 引用的 var(--x) 必须在 tokens.css 定义——样式残缺不报错，必须机器判定）⑤ 六边形桥闭合 + 契约新鲜度（后端改了没重新生成 SDK → FAIL）⑥ 无空包残留（改名后留下的空目录会被 Python 当成命名空间包，让 `from X import Y` 假成功、内部 `AttributeError` 被吞——台账/日志类副作用会静默丢失）⑦ 核心测试通过。任何一项 FAIL 必须先修复再进入阶段 3。产出约束与质量门禁清单见 `references/output-spec.md`。
 
 ### 阶段 3：跑通演示链路
 
