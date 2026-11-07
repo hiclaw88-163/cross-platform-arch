@@ -80,5 +80,31 @@ SQLite 台账         | 技术能力        | engine 适配器
 | core 零框架依赖 | verify 检查项 2（AST 级） |
 | token 引用闭合 | verify 检查项 4 |
 | core 不被端绕过 | verify 检查项 3 + grep 端源码不得 import 引擎内部模块 |
+| 无空包残留（改名后死目录） | verify 检查项 7（`check_empty_packages`） |
 | 端零结果映射 | 人工 grep（暂无自动检查,评审时必查） |
 | core 不是薄壳 | 人工评审：用例层必须有≥1 条"没有它端就会做错"的规则 |
+
+## 改名/重构后的清场规程（2026-11-07 事故）
+
+**事故**：把 `owk_engine/store` 改名 `ledger`、`apps/` 改名 `extensions/`、
+`kit/`→`signin/`、`scheduledomain/`→`scheduling/` 时，只搬了文件没删旧目录。
+Python 3 把**没有 `__init__.py` 的空目录**当成命名空间包，于是：
+
+```python
+from owk_engine import store   # 不报错！
+store.record_payload(...)      # AttributeError —— 被 best-effort 的 except 吞掉
+```
+
+结果：CLI 输出一切正常，**台账静默丢失一整天**，dashboard 一片空白，
+排查时还以为是"没跑过"。这比直接 ImportError 危险得多——它伪装成健康。
+
+**规程（改名后必须逐条做）**：
+
+1. 全量搜索旧名残留：`grep -rn "旧模块名" --include="*.py"`，包括
+   import、字符串形式的模块路径（entry-points、`importlib` 表）、docstring；
+2. **删掉旧目录本身**，不要只清空内容——空目录会变成"假成功的导入"；
+3. 跑 `verify_project.py`，检查项「无空包残留」必须 PASS；
+4. 对 best-effort 路径（`except Exception: pass`）逐个确认：**失败必须留痕**
+   （stderr 告警一次 / 计数器），静默吞异常只能用于真正的可选项；
+5. 回归用例钉住副作用：落库、写文件、发通知这类"看不到但很重要"的动作，
+   要有一条"真的写进去了"的测试，而不是只测返回码。

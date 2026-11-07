@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.7.2 (2026-11-07)
+
+- **verify 新增"无空包残留"门禁(check_empty_packages)**: `packages/*/src` 下任何
+  全空目录一律 FAIL。背景是真实事故——重构把 `owk_engine/store` 改名 `ledger`
+  但旧目录留着,Python 3 把空目录当命名空间包,`from owk_engine import store`
+  **导入成功却什么都没有**,`AttributeError` 落进 best-effort 的 `except` 被吞,
+  台账静默丢失一整天而 CLI 输出完全正常。
+  该检查上线后立刻在同项目抓出另外 5 个改名残留空目录
+  (`apps/qoder`、`apps/doubao_cn`、`apps/workbuddy_cn`、`kit`、`domainsignin`、
+  `scheduledomain`),均已清除。
+- **migration.md 新增「改名/重构后的清场规程」**: 搜旧名残留 → 删目录本身 →
+  verify 复检 → best-effort 路径必须留痕 → 副作用要有"真的写进去了"的测试。
+
 ## 1.7.1 (2026-11-07)
 
 - **verify 新增契约新鲜度门禁(check_sdk_freshness)**: generate.mjs 生成时写入
