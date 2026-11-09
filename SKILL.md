@@ -41,9 +41,9 @@ python <skill目录>/scripts/scaffold.py --name my-app --dir /path/to/my-app
 
 生成内容：`apps/server`（FastAPI）、`apps/cli`（Typer）、`apps/web`（Vue3+Vite）、`apps/desktop`（pywebview 壳，或 `--desktop electron` 时生成 Electron 主进程 + sidecar 入口）、`apps/uniapp`（小程序+App 占位）、`packages/core`（六边形分层核心）、`packages/sdk`（OpenAPI 生成脚本）、docker-compose、CI 配置。结构与关键文件说明见 `references/scaffold.md`。
 
-### 阶段 2.5：存量项目移植（可选——把已有项目的功能迁入本架构时必读）
+### 阶段 2.5：存量项目重写接入（可选——把已有项目的能力用本架构重新实现时必读）
 
-"把旧项目功能用新架构实现"**不等于**把旧代码整体搬进适配器层。必须先产出功能→归属映射表，把领域词汇（结果枚举+分类谓词）、编排语义（硬承诺/空集/校验）提取进 core，技术能力才留适配器；否则 core 会退化成薄壳，业务规则散落外圈。五步流程与"薄壳反模式"对照见 `references/migration.md`——移植类项目在阶段 4 验收时额外执行其"端零映射"检查。
+旧项目**不是代码来源，是协议字典 + 行为验收 oracle**——任何把旧文件搬进新仓库的动作（含改名式复制）都会把旧架构的弊端原样带进来，等于白换架构。必须先产出功能归属映射表 + 旧弊端对照表，把协议知识提炼为 PROTOCOL.md，然后按新端口的契约重写实现；旧系统只用来做行为一致性对照。五步流程与"薄壳反模式"见 `references/migration.md`——此类项目在阶段 4 验收时额外执行其"端零映射 + 行为一致性"检查。
 
 **生成后必须立即验证**（把架构约束交给机器判定）：
 
@@ -103,7 +103,7 @@ python <skill目录>/scripts/verify_project.py --project /path/to/my-app --test
 - `references/tech-stack.md` — 技术选型调研结论（附公开资料来源，2026-11 调研）
 - `references/scaffold.md` — Monorepo 目录结构与关键文件逐个说明
 - `references/output-spec.md` — 产出规范：文件清单、硬约束、运行时验收证据链
-- `references/migration.md` — 存量项目移植规范：功能归属映射、领域词汇提取、薄壳反模式对照（真实事故复盘）
+- `references/migration.md` — 存量项目重写接入规范：旧项目=协议字典+验收 oracle、功能归属映射、薄壳反模式对照（真实事故复盘）
 - `references/anthropic-patterns.md` — anthropics/skills 官方模式拆解（放置/调用/整合/评测）与本 skill 对照
 - `references/playbook.md` — 分阶段实施计划、演示脚本、验收清单
 - `references/reuse.md` — 新业务/新系统复用指南
