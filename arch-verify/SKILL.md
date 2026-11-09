@@ -4,7 +4,6 @@ description: 一核多端项目的机器门禁验收：verify_project.py 七项�
 license: MIT
 metadata:
   version: "1.0.0"
-  date: "2026-11-10"
   author: WorkBuddy Agent
 ---
 

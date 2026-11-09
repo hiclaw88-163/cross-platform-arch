@@ -14,7 +14,7 @@
     },
     {
       "id": 2,
-      "prompt": "这是我的旧项目 D:/legacy/signin-kit，功能不变，用一核多端架构帮我重写",
+      "prompt": "这是我的旧项目 \\<旧项目路径\\>，功能不变，用一核多端架构帮我重写",
       "expected_output": "先定性：旧项目是协议字典+行为验收 oracle，不是代码来源；产出功能归属映射表+旧弊端对照表，协议知识提炼为 PROTOCOL.md，按五步流程重写实现",
       "expectations": [
         "先分析旧项目并产出功能→归属映射表与旧弊端→新解法对照表（docs/legacy-assets.md）",

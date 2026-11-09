@@ -4,7 +4,6 @@ description: 「一核多端」统一应用架构的设计与评审规约。TRIG
 license: MIT
 metadata:
   version: "1.0.0"
-  date: "2026-11-10"
   author: WorkBuddy Agent
 ---
 
@@ -26,7 +25,7 @@ metadata:
 - **桌面端要不要离线运行？** 离线 → pywebview 内嵌本地 FastAPI + SQLite；纯在线 → 桌面壳连云端即可。
 - **是否有 AI/数据密集逻辑？** 有 → 这正是 Python 核心包的价值点；没有 → 架构同样成立（FastAPI 足够快）。
 
-裁决细节见 `references/tech-stack.md`（含 2025-2026 公开调研结论与来源）。
+裁决细节见 `references/tech-stack.md`（含公开调研结论与来源）。
 
 ## 关键决策速查
 
@@ -47,7 +46,7 @@ metadata:
 - `references/architecture.md` — 完整架构设计（分层职责、依赖规则、离线/在线双模式、扩展点）
 - `references/hexagonal-arch.md` — 六边形架构规约（R1-R9 规则 + verify 门禁映射 + 阿里 COLA/《Java 开发手册》对照）
 - `references/clients.md` — apps/ 多端规约（薄壳纪律、端间关系矩阵、共享代码下沉规则、多端一致性验收）
-- `references/tech-stack.md` — 技术选型调研结论（附公开资料来源，2026-11 调研）
+- `references/tech-stack.md` — 技术选型调研结论（附公开资料来源）
 - `references/reuse.md` — 新业务/新系统复用指南（换"芯"不换"壳"）
 
 ## 配套 skill（语义配合，无文件依赖）

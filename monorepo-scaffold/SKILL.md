@@ -4,7 +4,6 @@ description: 从零搭建「一核多端」Monorepo 项目：脚手架生成、O
 license: MIT
 metadata:
   version: "1.0.0"
-  date: "2026-11-10"
   author: WorkBuddy Agent
 ---
 

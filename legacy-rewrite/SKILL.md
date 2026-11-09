@@ -4,7 +4,6 @@ description: 存量项目重写接入「一核多端」架构的规约：旧项�
 license: MIT
 metadata:
   version: "1.0.0"
-  date: "2026-11-10"
   author: WorkBuddy Agent
 ---
 
