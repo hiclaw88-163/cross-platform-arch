@@ -36,7 +36,9 @@
 
 ### 第 1 步：功能清单分析 + 旧弊端对照（不许跳过）
 
-通读旧项目,产出两张表（写入 `docs/legacy-assets.md`）:
+通读旧项目,产出两张表（写入 `docs/specs/legacy/` 下，文件命名按 project-docs specs
+标准 `{层级字母}-{NN}-{主题}.md`，层级前缀以项目 `specs/README.md` 映射为准，
+如 `A0-01-旧系统知识资产.md`）:
 
 **表 A · 功能 → 技术能力归属**:
 

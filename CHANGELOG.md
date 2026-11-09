@@ -1,5 +1,34 @@
 # Changelog
 
+## legacy-rewrite 1.0.1 (2026-11-10)
+
+- 产出路径对齐 project-docs specs 体系：`docs/legacy-assets.md` →
+  `docs/specs/legacy/{层级字母}-{NN}-{主题}.md`（层级前缀以项目 `specs/README.md`
+  映射为准，如 `A0-01-旧系统知识资产.md`）；migration.md 与 evals.json 同步
+
+## project-docs 1.1.0 (2026-11-10)
+
+- **init_docs.py 生成 specs 入口 README**（新增 `templates/specs/README.md`）：
+  默认 TOGAF 层级映射表 + 换前缀避让提醒 + 文档清单表，新项目开箱即符合 specs 命名标准
+
+- **补 specs/guides 文件命名规范缺口**（ai-marina 落地时暴露：specs 下混出
+  PROPOSAL/ARCHITECTURE/DESIGN/legacy-assets 四种类型前缀，编号各自为政）；
+  guides/ 文件命名 `NN-主题.md`（目录内递增编号）；类型前缀禁止与编号规则见
+  下条 specs 恢复条目及 structure.md
+- **specs 命名恢复 keshumai 原生格式**（用户核对原文后纠正：规范权威源是 keshumai
+  `specs/architecture/README.md` §1，字母序号在 NN 前）：`L{层级}-{NN}{分册字母}-{主题}.md`
+  - `L{层级}`：TOGAF 对齐参考映射 L0 项目管理/L1 架构愿景/L2 应用架构/L3 技术架构/
+    L4 详细设计/L5 实现规范/L6 部署运维；层级字母↔子目录映射由项目自定并写入 specs 入口 README；
+    项目已有 `L{N}` 语义占用时（如产品能力分层）必须换前缀字母
+  - `{NN}`：层级内两位递增；分册字母在 NN 后主题前——概述/实现配对共享数字加 `i`，
+    兄弟子文档 `j/k/l`，同号并行文档须目录 README 标注
+  - 初版收编时误将 L 前缀记为"有意省略"，本轮以 keshumai 原文为准恢复
+- **补齐分册字母规则**（收编时只在 conventions/ 段保留，specs/guides 段遗漏）：
+  conventions 分册仍为字母后缀 `02a-`（主册过载拆分，keshumai conventions 实例：
+  `02-后端工程结构` + `02a-api契约` + `02b-srv分层` + `02c-framework`），
+  拆分时同步更新 AGENTS.md 编号路由
+- structure.md 同步更新；ai-marina docs 为首个按新规范重命名的项目
+
 ## 2.0.0 (2026-11-10) — breaking
 
 单 skill 拆分为 4 个独立 skill（方案 A，按工作流阶段拆分）：

@@ -7,7 +7,8 @@
 行为:
     1. 按 templates/ 生成骨架: AGENTS.md、README.md、TODO.md、
        conventions/00-项目配置.md、conventions/规范索引.md、conventions/规范模板.md、
-       adr/ADR-模板.md, 以及 guides/ specs/ plans/ scripts/ 空目录(.gitkeep)
+       adr/ADR-模板.md、specs/README.md（层级字母↔子目录映射入口，默认 TOGAF 映射）,
+       以及 guides/ plans/ scripts/ 空目录(.gitkeep)
     2. 仅替换 {project}/{projectName} 两个占位符; 其余占位符（{basePackage}、{date}、
        {owners}…）保留原样, 由人按项目事实填写
     3. 默认不覆盖已存在文件; --force 覆盖
@@ -30,8 +31,9 @@ FILES = [
     ("conventions/规范索引.md", "conventions/规范索引.md"),
     ("conventions/规范模板.md", "conventions/01-规范模板.md"),
     ("adr/ADR-模板.md", "adr/ADR-001-结论式标题.md"),
+    ("specs/README.md", "specs/README.md"),
 ]
-EMPTY_DIRS = ["guides", "specs", "plans", "scripts"]
+EMPTY_DIRS = ["guides", "plans", "scripts"]
 
 # 只替换这两个; 其余占位符留给人工填写
 AUTO_VARS = {"{project}": None, "{projectName}": None}  # 值由 --name 填充

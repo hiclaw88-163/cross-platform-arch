@@ -3,7 +3,7 @@ name: legacy-rewrite
 description: 存量项目重写接入「一核多端」架构的规约：旧项目是协议字典+行为验收 oracle，不是代码来源。TRIGGER when 把已有项目/旧系统的功能用一核多端架构重新实现、评估旧代码怎么迁移、需要产出功能归属映射表或旧弊端对照表；DO NOT TRIGGER when 从零新项目（用 monorepo-scaffold）、纯架构设计问答（用 cross-platform-design）、常规项目验收（用 arch-verify）。
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "1.0.1"
   author: WorkBuddy Agent
 ---
 
