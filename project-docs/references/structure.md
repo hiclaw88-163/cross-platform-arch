@@ -1,6 +1,6 @@
 # 目录标准：每类目录放什么/不放什么
 
-> 结构提炼自 keshumai-docs 实际体系。根目录固定四件：`README.md`（导航）、`AGENTS.md`（AI 路由）、`TODO.md`（待办）、以及六个内容目录。
+> 结构提炼自实际项目 docs 体系。根目录固定四件：`README.md`（导航）、`AGENTS.md`（AI 路由）、`TODO.md`（待办）、以及六个内容目录。
 
 ## conventions/ — 强制开发规范
 
@@ -8,17 +8,17 @@
 
 **不放**：操作指南（→ `guides/`）、设计文档（→ `specs/`）、一次性决策（→ `adr/`）。
 
-**命名模式**（keshumai 实例）：`02-后端工程结构与类命名规范.md`、`03-API规范.md`、`04-数据库规范.md`、`08-Git规范.md`。编号稳定后不重排——外部引用（AGENTS.md/索引）按编号路由。
+**命名模式**（实例）：`02-后端工程结构与类命名规范.md`、`03-API规范.md`、`04-数据库规范.md`、`08-Git规范.md`。编号稳定后不重排——外部引用（AGENTS.md/索引）按编号路由。
 
 ## specs/ — 设计规格
 
-**放**：架构规划、领域边界、服务详设、横切设计。按架构层级分子目录（keshumai 实践为 TOGAF 分层：`architecture/`（含 `application/`、`cross-cutting/`、`governance/`）、`domain/`、`services/`（每服务一目录）、`ops/`）。子目录按项目自身架构分层增建，不必照搬 TOGAF 六层。
+**放**：架构规划、领域边界、服务详设、横切设计。按架构层级分子目录（一种实践是 TOGAF 分层：`architecture/`（含 `application/`、`cross-cutting/`、`governance/`）、`domain/`、`services/`（每服务一目录）、`ops/`）。子目录按项目自身架构分层增建，不必照搬 TOGAF 六层。
 
 **不放**：强制性编码规范（→ `conventions/`）。
 
 ## adr/ — 架构决策记录
 
-**放**：`ADR-编号-标题.md`，一文件一个决策。标题直接写结论（keshumai 实例：`ADR-001-库存扣减走Redis预扣而非Seata.md`——标题即决策，不写"关于库存的讨论"）。
+**放**：`ADR-编号-标题.md`，一文件一个决策。标题直接写结论（实例：`ADR-001-库存扣减走Redis预扣而非Seata.md`——标题即决策，不写"关于库存的讨论"）。
 
 **不放**：决策的实施细节与代码（→ `specs/`）。
 
@@ -30,13 +30,13 @@
 
 ## plans/ — 交付计划
 
-**放**：排期、里程碑、Go/No-Go 结论。文件名带自然周期（keshumai 实例：`{年月}-架构交付计划.md`）。
+**放**：排期、里程碑、Go/No-Go 结论。文件名带自然周期（实例：`{年月}-架构交付计划.md`）。
 
 **不放**：长期有效的规范——计划会过期，规范不会。
 
 ## scripts/ — 文档配套协作脚本
 
-**放**：多仓批量拉取/硬同步（keshumai 实例：`pull-all.sh`、`sync-hard.sh`）、文档链接存在性检查（`check-backtick-paths.ps1`）。
+**放**：多仓批量拉取/硬同步（实例：`pull-all.sh`、`sync-hard.sh`）、文档链接存在性检查（`check-backtick-paths.ps1`）。
 
 **不放**：业务代码。
 
