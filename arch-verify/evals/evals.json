@@ -1,0 +1,25 @@
+{
+  "skill_name": "arch-verify",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "生成的项目怎么检查是否符合架构要求？",
+      "expected_output": "一条命令 verify_project.py，七项检查 + 运行时验收链",
+      "expectations": [
+        "运行 scripts/verify_project.py --project <目录> --test",
+        "说明硬约束：结构完整/核心纯净/依赖方向/Token 闭合/桥闭合+契约新鲜度/无空包残留/测试通过",
+        "指出 references/output-spec.md 为产出规范来源"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "生成的项目页面样式看起来不完整，有些间距和颜色没生效",
+      "expected_output": "定位为 token 引用未定义（引用的 var(--x) 不在 tokens.css），运行 verify_project.py 检查项 4 并补全 tokens.css",
+      "expectations": [
+        "运行 scripts/verify_project.py 看 Token 引用闭合检查结果",
+        "解释该类破损不报错不崩构建、页面安静变丑的特征",
+        "在 tokens.css 补全缺失定义而非在组件里硬编码色值"
+      ]
+    }
+  ]
+}

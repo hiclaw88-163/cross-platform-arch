@@ -1,0 +1,27 @@
+{
+  "skill_name": "monorepo-scaffold",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我要做一个团队待办事项应用，需要 CLI、Web、桌面端三端，Python 技术栈，帮我搭起来",
+      "expected_output": "生成 Monorepo 骨架（core/server/cli/web/desktop），并通过 verify_project.py 验证",
+      "expectations": [
+        "先运行 scaffold.py 生成项目而非手写全部文件",
+        "生成的 packages/core 不 import 任何框架",
+        "运行 ../arch-verify 的 verify_project.py 且结果为 PASS",
+        "说明 CLI 进程内直调核心、桌面端为壳的通信方式"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "页面太丑了，帮我把生成项目的视觉升级一下",
+      "expected_output": "按设计能力包五步加载顺序执行，产出只改 tokens.css + design-decisions.md",
+      "expectations": [
+        "按 frontend-design → theme-factory → ui-ux-pro-max → 动效 → impeccable 顺序",
+        "颜色字号只写入 apps/web/src/styles/tokens.css，不硬编码进组件",
+        "引用 references/design/README.md 的防冲突约束",
+        "产出或更新 docs/design-decisions.md 设计决策记录"
+      ]
+    }
+  ]
+}
