@@ -1,0 +1,27 @@
+{
+  "skill_name": "project-docs",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "新项目刚立项，帮我搭一套文档体系",
+      "expected_output": "运行 init_docs.py 生成骨架，说明目录职责分工与唯一变量入口纪律",
+      "expectations": [
+        "运行 scripts/init_docs.py --name <项目名> --dir <目标目录> 生成骨架而非手写散文件",
+        "说明 conventions/ 管强制规范、specs/ 管设计、adr/ 管决策、AGENTS.md 管 AI 路由的分工",
+        "强调项目特定值只进 conventions/00-项目配置.md，其余文件用占位符，禁止写死路径",
+        "提示剩余占位符（{basePackage}/{date}/{owners} 等）需人工按项目事实填写"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "项目文档越来越乱，文件乱放、同一个配置写了好几处、AI 进场不知道读什么",
+      "expected_output": "按 structure.md 逐份归类整改，收敛唯一变量入口，补 AGENTS.md 与规范索引路由",
+      "expectations": [
+        "先盘点现状：对照 references/structure.md 的'放什么/不放什么'给出每份文档的归属调整表",
+        "收敛唯一事实来源：项目特定值合并进 00-项目配置.md，副本改为指路",
+        "建立路由：AGENTS.md 编号任务路由 + conventions/规范索引.md 快速路由表",
+        "建立 TODO 双轨：TODO.md 管'要做'、缺口清单管'缺不缺'；反引号路径引用跑存在性检查"
+      ]
+    }
+  ]
+}
