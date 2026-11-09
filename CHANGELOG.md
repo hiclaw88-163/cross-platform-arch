@@ -1,5 +1,27 @@
 # Changelog
 
+## 2.0.0 (2026-11-10) — breaking
+
+单 skill 拆分为 4 个独立 skill（方案 A，按工作流阶段拆分）：
+
+- `cross-platform-design`（架构设计与评审）— 收编原核心原则、阶段1 需求定位、
+  关键决策速查表与 architecture/hexagonal-arch/clients/tech-stack/reuse 五份规约
+- `monorepo-scaffold`（从零搭建）— 收编原阶段2 脚手架生成、阶段3 演示链路、
+  阶段3.5 设计系统与 scaffold.py/playbook/design 能力包
+- `arch-verify`（机器门禁验收）— 收编原 verify 七项检查、verify_project.py 与 output-spec.md
+- `legacy-rewrite`（存量重写接入）— 收编原阶段2.5 定性反转与 migration.md
+
+配套变更：
+
+- evals 按 skill 拆分（eval 2→design，1/5→scaffold，4/7→verify，3/6→legacy）
+- validate_skill.py 迁入 tools/ 并改造：批量模式（自动发现所有 skill）+ 引用闭合检查
+  （SKILL.md 中引用的本地路径必须存在、../ 跨 skill 引用目标目录必须存在），evals.json 检查改为可选
+- 新增 tools/sync.sh：整组同步所有 skill 到 ~/.claude/skills/（自动发现，新增 skill 零改动）
+- anthropic-patterns.md 移入 docs/（元知识，非业务 skill 内容）
+- SKILL.md 间跨引用约定 `../<skill名>/` 相对路径；scaffold 产出清单与 verify 检查项的
+  单一事实来源定为 arch-verify/references/output-spec.md
+- 各 skill 版本自 1.0.0 独立起步；本 CHANGELOG 继续记录整个仓库
+
 ## 1.8.0 (2026-11-10)
 
 - **migration.md 由「存量项目移植规范」改名为「存量项目重写接入规范」**:
