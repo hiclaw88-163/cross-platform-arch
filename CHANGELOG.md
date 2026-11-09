@@ -10,6 +10,10 @@
 
 - **init_docs.py 生成 specs 入口 README**（新增 `templates/specs/README.md`）：
   默认 TOGAF 层级映射表 + 换前缀避让提醒 + 文档清单表，新项目开箱即符合 specs 命名标准
+- **修复 00-项目配置 自指替换缺陷**（ai-marina 审计时发现）：变量定义表里的
+  `{project}`/`{projectName}` 是变量名字面量，曾被 AUTO_VARS 一并替换成项目名
+  （生成 `| ai-marina | ai-marina |` 自指行）；新增 NO_AUTO_REPLACE 排除该文件，
+  变量值留待人工在唯一变量入口填写
 
 - **补 specs/guides 文件命名规范缺口**（ai-marina 落地时暴露：specs 下混出
   PROPOSAL/ARCHITECTURE/DESIGN/legacy-assets 四种类型前缀，编号各自为政）；

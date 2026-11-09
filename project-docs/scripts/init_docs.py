@@ -37,6 +37,8 @@ EMPTY_DIRS = ["guides", "plans", "scripts"]
 
 # 只替换这两个; 其余占位符留给人工填写
 AUTO_VARS = {"{project}": None, "{projectName}": None}  # 值由 --name 填充
+# 00-项目配置.md 是变量定义表：占位符是「变量名」本身，禁止被自动替换
+NO_AUTO_REPLACE = {"conventions/00-项目配置.md"}
 
 
 def main() -> int:
@@ -65,8 +67,9 @@ def main() -> int:
             continue
         dst.parent.mkdir(parents=True, exist_ok=True)
         text = src.read_text(encoding="utf-8")
-        for k, v in replacements.items():
-            text = text.replace(k, v)
+        if out_rel not in NO_AUTO_REPLACE:
+            for k, v in replacements.items():
+                text = text.replace(k, v)
         dst.write_text(text, encoding="utf-8")
         created.append(out_rel)
 
