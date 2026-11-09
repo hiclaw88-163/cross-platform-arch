@@ -69,7 +69,7 @@ python <arch-verify 安装目录>/scripts/verify_project.py --project /path/to/m
 ## 同步警示
 
 本 skill 的脚手架产出清单与 **arch-verify** skill 的检查项必须对齐。**单一事实来源是
-arch-verify 的 references/output-spec.md 文件清单**——改脚手架产出（新增/删除生成文件）
+arch-verify 的产出规范文件 output-spec**——改脚手架产出（新增/删除生成文件）
 时必须同步该清单，否则机器门禁会误报或漏报。
 
 ## 配套 skill（语义配合，无文件依赖）
