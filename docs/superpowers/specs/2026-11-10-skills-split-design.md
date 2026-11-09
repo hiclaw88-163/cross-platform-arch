@@ -12,6 +12,7 @@
 | 目录布局 | 仓库根目录平铺 skill 文件夹，目录即 skill |
 | 加载方式 | 仓库只做源码管理；用 sync 脚本整组拷贝到 `~/.claude/skills/` |
 | 拆分粒度 | 方案 A：按「工作流阶段」拆 4 个（拒绝细拆 6-7 个与粗拆 2 个） |
+| 存量规范提炼 | 本次只在 README 加「从项目规范提炼 skill」流程章节；keshumai-docs 等存量规范的提炼作为后续任务逐个做，不随本次拆分落地 |
 
 ## 2. 仓库总体结构（拆分后）
 
@@ -74,6 +75,18 @@ cross-platform-arch/
 3. `python tools/validate_skill.py` 通过即可被 sync.sh 发现
 
 不设中央注册文件，目录即 skill。
+
+### 7.1 从项目规范提炼 skill（本次只写流程，不落地具体提炼）
+
+存量项目（如 `keshumai-docs`）的 conventions/adr/guides 已沉淀大量规范，但耦合项目语境无法跨项目复用。README 新增提炼流程章节，约定五步：
+
+1. **盘点候选**：扫描项目 docs 中带 frontmatter 或编号体系的规范（conventions/adr/guides），按"约束的是技术还是业务"初分——只有技术性约束可泛化，业务性约束（如租户映射、域归属 ADR）留在项目内。
+2. **去项目化**：把 `{project}`、`{basePackage}`、域名、公司前缀等抽为占位符（参照 keshumai `00-项目配置.md` 的变量模式），项目特有决策降级为"示例"。
+3. **去重归并**：与 ai-dev-spec 现有子 skill（writing-java-code、designing-database、ensuring-quality 等）对照，重叠部分走"合并/升版"而不是新建 skill；确属空白才新建目录。
+4. **补充触发词与验证方式**：每条规则标注 TRIGGER/DO NOT TRIGGER 与验证方式（机器检查/人工审查），能写成 verify 脚本的规则优先机器化。
+5. **落库**：按 §7 三步流程入库，原项目 docs 保留不动（项目内文件仍是项目语境的单一事实来源；skill 指回占位符版本）。
+
+首批候选（后续任务，不随本次拆分实施）：keshumai `02-后端工程结构与类命名规范`、`02a-api契约与ReqResp`、`04-数据库规范`（均技术性强、与 ai-dev-spec 现有内容重叠度需逐一对照）。
 
 ## 8. 错误处理与验证
 
