@@ -1,6 +1,8 @@
-# leisure-dev-skills（cross-platform-arch 仓库）
+# cross-platform-arch（开发规范 skill 集合仓库）
 
-开发规范 **skill 集合仓库**（anthropics/skills 形态）：根目录平铺、目录即 skill、按需触发加载，可持续扩展新的开发规范 skill。
+「一核多端」统一应用架构：用 Python 写一个纯业务核心包，各端（CLI / Web / 桌面 / 小程序 / App……数量不限）全部作为核心的"适配器"或"壳"，通过统一 OpenAPI 契约通信。新业务复用 = 换掉核心包，多端骨架原样保留。
+
+开发规范 **skill 集合仓库**（anthropics/skills 形态）：根目录平铺、目录即 skill、按需触发加载；**各 skill 完全独立、互不依赖**，可持续扩展新的开发规范 skill。
 
 > 本仓库前身是单 skill `cross-platform-arch`（v1.8.0），2026-11-10 拆分为 4 个独立 skill（见 CHANGELOG 2.0.0）。
 
@@ -13,14 +15,14 @@
 | [arch-verify](arch-verify/) | 机器门禁验收：verify_project.py 七项检查 + 产出规范 | 验收项目是否符合架构、诊断"样式不完整/token 未定义" |
 | [legacy-rewrite](legacy-rewrite/) | 存量项目重写接入：旧项目=协议字典+验收 oracle | 把旧系统功能用一核多端架构重新实现 |
 
-## 安装（整组拷贝）
+## 安装
 
 ```bash
-tools/sync.sh            # 默认同步到 ~/.claude/skills/
+tools/sync.sh            # 同步所有 skill 到 ~/.claude/skills/
 tools/sync.sh /other/dir # 或指定目标目录
 ```
 
-**必须整组使用**：SKILL.md 之间用 `../<skill名>/` 相对引用，拆开安装会断链。
+**各 skill 独立安装、互不依赖**——单独安装任何一个都能正常工作；skill 之间只存在语义层面的配合关系（如 scaffold 生成后建议用 arch-verify 验收），不引用对方文件。
 
 ## 扩展一：新增规范 skill（三步）
 

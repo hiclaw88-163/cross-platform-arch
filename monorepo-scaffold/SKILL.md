@@ -23,11 +23,13 @@ python scripts/scaffold.py --name my-app --dir /path/to/my-app
 
 ## 生成后必须立即验证（把架构约束交给机器判定）
 
+运行 **arch-verify** skill 自带的 verify_project.py（该 skill 独立安装，按其实际安装路径执行）：
+
 ```bash
-python ../arch-verify/scripts/verify_project.py --project /path/to/my-app --test
+python <arch-verify 安装目录>/scripts/verify_project.py --project /path/to/my-app --test
 ```
 
-七项检查（结构完整性 / 核心纯净性 / 依赖方向 / Token 引用闭合 / 六边形桥闭合+契约新鲜度 / 无空包残留 / 核心测试）详见 `../arch-verify/`。任何一项 FAIL 必须先修复再进入下一步。
+七项检查（结构完整性 / 核心纯净性 / 依赖方向 / Token 引用闭合 / 六边形桥闭合+契约新鲜度 / 无空包残留 / 核心测试）详见 arch-verify skill。任何一项 FAIL 必须先修复再进入下一步。
 
 ## 跑通演示链路
 
@@ -66,12 +68,12 @@ python ../arch-verify/scripts/verify_project.py --project /path/to/my-app --test
 
 ## 同步警示
 
-本 skill 的脚手架产出清单与 arch-verify 的检查项必须对齐。**单一事实来源是
-`../arch-verify/references/output-spec.md` 的文件清单**——改脚手架产出（新增/删除生成文件）
+本 skill 的脚手架产出清单与 **arch-verify** skill 的检查项必须对齐。**单一事实来源是
+arch-verify 的 references/output-spec.md 文件清单**——改脚手架产出（新增/删除生成文件）
 时必须同步该清单，否则机器门禁会误报或漏报。
 
-## 与其他 skill 的关系
+## 配套 skill（语义配合，无文件依赖）
 
-- 架构设计与选型问答：`../cross-platform-design/`
-- 生成后验收：`../arch-verify/`（生成后必须立即运行其 verify_project.py）
-- 旧项目功能重写接入：`../legacy-rewrite/`
+- **cross-platform-design** — 架构设计与选型问答
+- **arch-verify** — 生成后验收（生成后必须立即运行其 verify_project.py）
+- **legacy-rewrite** — 旧项目功能重写接入

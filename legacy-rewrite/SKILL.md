@@ -16,10 +16,10 @@ metadata:
 
 五步流程、功能→归属映射表、"薄壳反模式"对照与真实事故复盘见 `references/migration.md`。
 
-此类项目在验收时，除 `../arch-verify/` 的机器门禁外，额外执行其"端零映射 + 行为一致性"检查（grep 不得出现旧仓库复制来的实现；新旧系统同输入同结果）。
+此类项目在验收时，除常规机器门禁（arch-verify skill 的 verify_project.py）外，额外执行"端零映射 + 行为一致性"检查（grep 不得出现旧仓库复制来的实现；新旧系统同输入同结果）。
 
-## 与其他 skill 的关系
+## 配套 skill（语义配合，无文件依赖）
 
-- 从零搭新项目（无存量）：`../monorepo-scaffold/`
-- 机器门禁验收：`../arch-verify/`（本项目额外叠加本 skill 的端零映射+行为一致性检查）
-- 架构设计规约来源：`../cross-platform-design/`
+- **monorepo-scaffold** — 从零搭新项目（无存量时用）
+- **arch-verify** — 机器门禁验收（本项目额外叠加端零映射+行为一致性检查）
+- **cross-platform-design** — 架构设计规约来源

@@ -11,8 +11,8 @@
   - name: kebab-case，≤64 字符，不得以连字符开头/结尾或含连续连字符
   - description: ≤1024 字符，不得含尖括号（触发匹配靠它，写清"何时使用"）
 本仓库附加:
-  - 引用闭合: SKILL.md 正文里提到的 references/…、scripts/…、evals/… 相对路径必须存在;
-    ../ 开头的跨 skill 引用校验目标目录存在（允许兄弟 skill 未整组安装时不深查）
+  - 引用闭合: SKILL.md 正文里提到的 references/…、scripts/…、evals/… 相对路径必须存在
+    （各 skill 完全独立、互不依赖，禁止 ../ 跨 skill 文件引用）
   - evals/evals.json 存在时校验结构（skill_name 与 frontmatter.name 一致、条目键齐全）
 """
 from __future__ import annotations
@@ -24,7 +24,8 @@ from pathlib import Path
 
 ALLOWED_KEYS = {"name", "description", "license", "allowed-tools", "metadata", "compatibility"}
 LOCAL_REF_RE = re.compile(r"(?<![\w.\-/])(?:references|scripts|evals)/[\w\-./]+")
-CROSS_REF_RE = re.compile(r"\.\./([a-z0-9-]+)")
+# 各 skill 必须独立：禁止 ../ 跨 skill 文件引用
+CROSS_REF_FORBID_RE = re.compile(r"\.\./[\w\-./]+")
 
 
 def fail(msg: str) -> str:
@@ -85,12 +86,10 @@ def validate_one(root: Path) -> str | None:
     if missing:
         return f"Dangling local reference(s): {', '.join(missing)}"
 
-    # 跨 skill 引用：目标目录应存在（兄弟 skill 平级安装）
-    repo_root = root.parent
-    bad_cross = sorted({t for t in CROSS_REF_RE.findall(body)
-                        if not (repo_root / t).is_dir()})
+    # 独立性：禁止 ../ 跨 skill 文件引用（anthropics/skills 形态，skill 互不依赖）
+    bad_cross = sorted(set(CROSS_REF_FORBID_RE.findall(body)))
     if bad_cross:
-        return f"Cross-skill reference to missing sibling(s): {', '.join(bad_cross)}"
+        return f"Cross-skill file reference(s) forbidden (skills must be self-contained): {', '.join(bad_cross)}"
 
     # evals.json 可选校验
     ev_path = root / "evals/evals.json"

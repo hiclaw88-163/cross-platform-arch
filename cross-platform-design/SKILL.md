@@ -50,10 +50,10 @@ metadata:
 - `references/tech-stack.md` — 技术选型调研结论（附公开资料来源，2026-11 调研）
 - `references/reuse.md` — 新业务/新系统复用指南（换"芯"不换"壳"）
 
-## 与其他 skill 的关系
+## 配套 skill（语义配合，无文件依赖）
 
-本 skill 定的是"架构长什么样"。落地动作在兄弟 skill（约定整组安装、用 `../` 相对引用）：
+本 skill 定的是"架构长什么样"。落地动作由兄弟 skill 承担，各自独立安装、按 description 触发：
 
-- 从零搭新项目：`../monorepo-scaffold/`（脚手架生成 + SDK 打通 + 演示链路 + 设计系统）
-- 验收项目是否符合本架构：`../arch-verify/`（机器门禁）
-- 旧项目功能重写接入：`../legacy-rewrite/`
+- **monorepo-scaffold** — 从零搭新项目（脚手架生成 + SDK 打通 + 演示链路 + 设计系统）
+- **arch-verify** — 验收项目是否符合本架构（机器门禁）
+- **legacy-rewrite** — 旧项目功能重写接入

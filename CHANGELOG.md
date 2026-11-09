@@ -18,8 +18,9 @@
   （SKILL.md 中引用的本地路径必须存在、../ 跨 skill 引用目标目录必须存在），evals.json 检查改为可选
 - 新增 tools/sync.sh：整组同步所有 skill 到 ~/.claude/skills/（自动发现，新增 skill 零改动）
 - anthropic-patterns.md 移入 docs/（元知识，非业务 skill 内容）
-- SKILL.md 间跨引用约定 `../<skill名>/` 相对路径；scaffold 产出清单与 verify 检查项的
-  单一事实来源定为 arch-verify/references/output-spec.md
+- 各 skill **完全独立、互不依赖**（anthropics/skills 形态）：禁止 `../` 跨 skill 文件引用，
+  validate_skill.py 强制校验；skill 间只有语义配合（scaffold 产出清单与 verify 检查项的
+  单一事实来源定为 arch-verify/references/output-spec.md）
 - 各 skill 版本自 1.0.0 独立起步；本 CHANGELOG 继续记录整个仓库
 
 ## 1.8.0 (2026-11-10)

@@ -32,11 +32,11 @@ python scripts/verify_project.py --project /path/to/my-app --test
 
 文件清单、硬约束、运行时验收证据链见 `references/output-spec.md`。
 
-本文件清单是**单一事实来源**：`../monorepo-scaffold/` 的脚手架产出必须与本清单对齐，
+本文件清单是**单一事实来源**：monorepo-scaffold skill 的脚手架产出必须与本清单对齐，
 脚手架变更时同步更新本清单。
 
-## 与其他 skill 的关系
+## 配套 skill（语义配合，无文件依赖）
 
-- 从零搭新项目：`../monorepo-scaffold/`（其脚手架生成后必须立即运行本 skill 的 verify_project.py）
-- 架构设计规约来源：`../cross-platform-design/`
-- 存量项目重写接入的项目：验收时额外执行 `../legacy-rewrite/` 的"端零映射 + 行为一致性"检查
+- **monorepo-scaffold** — 其脚手架生成后必须立即运行本 skill 的 verify_project.py
+- **cross-platform-design** — 架构设计规约来源
+- **legacy-rewrite** — 存量项目重写接入的项目，验收时额外执行其"端零映射 + 行为一致性"检查
