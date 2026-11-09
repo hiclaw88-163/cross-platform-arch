@@ -1,12 +1,12 @@
-# cross-platform-arch（开发规范 skill 集合仓库）
+# cross-platform-arch
 
-「一核多端」统一应用架构：用 Python 写一个纯业务核心包，各端（CLI / Web / 桌面 / 小程序 / App……数量不限）全部作为核心的"适配器"或"壳"，通过统一 OpenAPI 契约通信。新业务复用 = 换掉核心包，多端骨架原样保留。
+Agent Skills 集合仓库：面向「一核多端」应用架构与工程规范的可复用 skill 库。
 
-开发规范 **skill 集合仓库**（anthropics/skills 形态）：根目录平铺、目录即 skill、按需触发加载；**各 skill 完全独立、互不依赖**，可持续扩展新的开发规范 skill。
+- **形态**：对齐 [anthropics/skills](https://github.com/anthropics/skills) —— 根目录平铺、目录即 skill，每个 skill 含 `SKILL.md`（YAML frontmatter + 正文）及可选的 `references/`、`scripts/`、`templates/`、`evals/`
+- **独立性**：各 skill 互不依赖，单独安装任意一个均可工作；skill 之间只有语义层面的配合关系，禁止文件级引用
+- **扩展性**：新增规范 skill 无需注册——建目录、过校验即被同步脚本发现
 
-> 本仓库前身是单 skill `cross-platform-arch`（v1.8.0），2026-11-10 拆分为 4 个独立 skill（见 CHANGELOG 2.0.0）。
-
-## Skill 总览
+## 可用 Skill
 
 | Skill | 职责 | 典型触发场景 |
 |---|---|---|
@@ -18,41 +18,65 @@
 
 ## 安装
 
+**要求**：Python 3.8+（校验/脚手架脚本仅用标准库）、rsync（同步用）。
+
 ```bash
-tools/sync.sh            # 同步所有 skill 到 ~/.claude/skills/
-tools/sync.sh /other/dir # 或指定目标目录
+# 同步所有 skill 到本地 skills 目录（默认 ~/.claude/skills/）
+tools/sync.sh
+
+# 或指定目标目录
+tools/sync.sh /path/to/skills
 ```
 
-**各 skill 独立安装、互不依赖**——单独安装任何一个都能正常工作；skill 之间只存在语义层面的配合关系（如 scaffold 生成后建议用 arch-verify 验收），不引用对方文件。
+同步脚本自动发现根目录下所有含 `SKILL.md` 的顶层目录，无需配置清单。
 
-## 扩展一：新增规范 skill（三步）
+## Skill 格式约定
 
-1. 新建顶层目录 + `SKILL.md`（frontmatter 含 `name`/`description`，触发词用 TRIGGER / DO NOT TRIGGER 双向声明并与现有 skill 互斥，description 末尾互指邻居）
-2. 本 README 总览表加一行
-3. `python3 tools/validate_skill.py` 通过后即被 `tools/sync.sh` 自动发现——不设中央注册文件，目录即 skill
+每个 skill 的 `SKILL.md` 必须包含：
 
-## 扩展二：从项目规范提炼 skill（五步）
+```yaml
+---
+name: kebab-case-name          # 与目录名一致
+description: <何时使用>。TRIGGER when <触发场景>；DO NOT TRIGGER when <排除场景>
+license: MIT
+metadata:
+  version: "x.y.z"
+---
+```
 
-存量项目（如 `keshumai-docs`）的 conventions/adr/guides 已沉淀大量规范，但耦合项目语境无法跨项目复用。提炼流程：
+- 触发词双向声明（TRIGGER / DO NOT TRIGGER）并与同仓库其他 skill 互斥，`description` 末尾互指邻居
+- 无 `date` 元数据、无时间性表述；任何项目特定值（项目名/包名/路径）一律 `{占位符}`，不写死
 
-1. **盘点候选**：扫描项目 docs 中带 frontmatter 或编号体系的规范，按"约束的是技术还是业务"初分——只有技术性约束可泛化，业务性约束（如租户映射、域归属 ADR）留在项目内。
-2. **去项目化**：把 `{project}`、`{basePackage}`、域名、公司前缀等抽为占位符（参照 keshumai `00-项目配置.md` 的变量模式），项目特有决策降级为"示例"。
-3. **去重归并**：与 ai-dev-spec 现有子 skill（writing-java-code、designing-database、ensuring-quality 等）对照，重叠部分走"合并/升版"而不是新建 skill；确属空白才新建目录。
-4. **补充触发词与验证方式**：每条规则标注 TRIGGER/DO NOT TRIGGER 与验证方式（机器检查/人工审查），能写成 verify 脚本的规则优先机器化。
-5. **落库**：按"扩展一"三步流程入库，原项目 docs 保留不动（项目内文件仍是项目语境的单一事实来源）。
+## 校验
 
-首批候选：keshumai `02-后端工程结构与类命名规范`、`02a-api契约与ReqResp`、`04-数据库规范`。
+```bash
+python3 tools/validate_skill.py    # 批量校验全部 skill
+python3 tools/validate_skill.py <skill目录>   # 单个校验
+```
 
-## 仓库级文件
+检查项：frontmatter 合规（Agent Skills 规范）→ 引用闭合（正文中引用的本地文件必须存在）→ 独立性（禁止 `../` 跨 skill 文件引用）→ `evals/evals.json` 结构（存在时）。
 
-| 路径 | 内容 |
-|---|---|
-| `CHANGELOG.md` | 根级记录整个仓库的版本演进（v1.x 单 skill 时代 + 2.0.0 起拆分后） |
-| `docs/anthropic-patterns.md` | 元知识：anthropics/skills 官方模式拆解（讲 skill 写作，非业务） |
-| `tools/validate_skill.py` | 批量校验所有 skill：frontmatter 合规 + 引用闭合 + evals 结构 |
-| `tools/sync.sh` | 自动发现所有 skill 目录，整组同步到本地 skills 目录 |
-| `docs/plans/`、`docs/superpowers/` | 实施计划与设计文档 |
+## 仓库结构
 
-## 技术栈默认组合（一核多端）
+```
+├── cross-platform-design/   # 架构设计与评审
+├── monorepo-scaffold/       # 项目脚手架（scaffold.py）
+├── arch-verify/             # 机器门禁（verify_project.py）
+├── legacy-rewrite/          # 存量重写接入
+├── project-docs/            # 文档体系标准（init_docs.py）
+├── tools/                   # validate_skill.py / sync.sh
+├── docs/                    # 设计文档、实施计划、skill 写作元知识
+└── CHANGELOG.md             # 根级版本演进记录
+```
 
-uv + FastAPI + SQLAlchemy 2.0 + Typer + Vue3/Vite + uni-app（小程序+App）+ pywebview（桌面，可切 Electron）+ SQLite→PostgreSQL
+## 扩展新 skill
+
+1. 新建顶层目录 + `SKILL.md`（按上方格式约定，触发词互斥）
+2. 本 README「可用 Skill」表加一行
+3. `python3 tools/validate_skill.py` 通过即完成——`tools/sync.sh` 自动发现
+
+从存量项目 docs 提炼可复用 skill 的五步流程（盘点候选 → 去项目化 → 去重归并 → 补触发词与验证方式 → 落库）见 [docs/superpowers/specs/2026-11-10-skills-split-design.md](docs/superpowers/specs/2026-11-10-skills-split-design.md) §7.1。
+
+## License
+
+[MIT](LICENSE)
