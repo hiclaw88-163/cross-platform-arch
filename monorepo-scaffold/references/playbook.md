@@ -42,8 +42,8 @@
 **场景：新增一条任务，各端各自操作，数据同源。**
 
 1. (2min) 打开 IDE 展示 monorepo 结构，指出 core 里"零框架 import"（grep 证明）。
-2. (2min) 终端：`my-app task add "写周报"` → `my-app task list` 显示。
-3. (2min) `uvicorn server:app` 起服务，开 http://127.0.0.1:8000/docs 展示自动文档；浏览器打开 web 页面，列表里出现"写周报"。
+2. (2min) 终端：`my-app-cli add "写周报"` → `my-app-cli list` 显示。
+3. (2min) `uv run uvicorn server.main:app` 起服务，开 http://127.0.0.1:8000/docs 展示自动文档；浏览器打开 web 页面，列表里出现"写周报"。
 4. (3min) 双击桌面包 exe，pywebview 窗口出现同一列表；关网络再演示离线模式（本地 SQLite）。
 5. (3min) HBuilderX 运行 uniapp 到微信开发者工具，同一列表；真机预览 App 端。
 6. (3min) 杀手锏：改 core 里一条业务规则（如标题最短 5 字），只重跑 server + CLI —— CLI 立即报错、Web 提交被 422 拦截 —— 证明"一处规则，各端生效"。

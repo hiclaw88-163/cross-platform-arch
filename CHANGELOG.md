@@ -1,5 +1,69 @@
 # Changelog
 
+## repo 2.0.2 (2026-11-10)
+
+- 接入提交信息规范（收编自 rfid-collector-app §13.1，泛化为通用约束）：
+  `<type>:[<需求单号>]: <中文主题>`——单行、动词开头、≤30 字、不加句号；
+  type 取 feat/fix/refactor/docs/chore/build/test；无关联需求的单号占位 `[0]`
+- 本仓库内置 `.githooks/commit-msg` 强制校验并启用（README「格式约定」补记）；
+  全部历史提交重写为规范格式
+
+## project-docs 1.2.0 (2026-11-10)
+
+- init_docs 新增生成 `conventions/08-提交信息规范.md`（与规范索引路由、
+  AGENTS.md 编号路由同步）；生成 init_docs 改回退为字节写入（LF 保持）
+- 文档骨架自此默认携带提交格式约束——AI 生成提交前先读 08
+
+## monorepo-scaffold 1.0.2 (2026-11-10)
+
+- 脚手架新增提交信息强制校验三件套：
+  `.githooks/commit-msg`（commit-msg 钩子）+ `scripts/install_hooks.py`
+  （纯 Python 启用器，修正 cwd 指向目标项目根）+ `scripts/setup_hooks.cjs`
+  （pnpm postinstall 自动启用，失败不阻断安装）
+- 生成器改字书写入保留 LF——Windows 生成的 sh 脚本不再被翻成 CRLF
+- 生成项目 README 新增「提交与协作（强制）」节；evals 补提交格式期望；
+  产出清单口径更新（模板 46/48 个，含 vendoring 自检器总计 47/49 个）
+
+## arch-verify 1.0.2 (2026-11-10)
+
+- verify_project.py 门禁清单纳入提交钩子三件套（缺任一即 FAIL），
+  与 output-spec 产出清单同步
+
+## repo 2.0.1 (2026-11-10)
+
+- 新增 `tools/sync.py`：`sync.sh` 的纯标准库等价实现（Windows/无 rsync 环境可用），
+  镜像语义（多余文件删除、缓存目录排除）与 `sync.sh` 一致，README 安装说明同步
+- README 环境要求修正：Python 3.8+ → 3.9+（verify_project.py 用了 `str.removesuffix`）
+- 删除工作区残留 `_test_demo/`（曾用于脚手架实测，gitignored 但不应长在仓库根）
+- 新增 `docs/superpowers/specs/2026-11-10-hexagonal-gate-alignment-design.md`：
+  六边形门禁对脚手架项目失效的方案对比（待评审后实施）
+
+## arch-verify 1.0.1 (2026-11-10)
+
+- verify_project.py 双修复：
+  - Windows GBK 控制台防护——`✗/✓` 等符号编码失败曾让验收器在最需要输出 FAIL
+    清单的时刻崩溃（UnicodeEncodeError）；现在不可编码字符降级为 `?`，中文照常
+  - `--test` 在无 uv 的机器上优雅降级为明确 FAIL 提示，不再抛
+    `FileNotFoundError` 崩溃
+- output-spec.md 产出清单补充 vendoring 说明（43/45 模板 + 1 自检器）
+
+## monorepo-scaffold 1.0.1 (2026-11-10)
+
+- 修复 scaffold.py 的自检器 vendoring 路径（拆分提交 22338c7 把
+  verify_project.py 移入 arch-verify 后遗留的回归）：现在按"本 skill 目录 →
+  同侧 arch-verify skill"顺序探测复制，生成项目终含
+  `scripts/verify_project.py`（此前每次生成都打警告、交付页 CI verify 必挂）
+- 生成的 pywebview/Electron 打包注释补 Windows `--add-data` 分隔符说明
+- playbook demo 命令漂移修正：
+  `my-app task add` → `my-app-cli add`；`uvicorn server:app` → `uvicorn server.main:app`
+
+## legacy-rewrite 1.0.2 (2026-11-10)
+
+- migration.md 的 specs 产物命名对齐 project-docs 1.1.0 恢复后的权威格式：
+  `{层级字母}-{NN}-{主题}.md`（例 `A0-01-旧系统知识资产.md`）→
+  `L{层级}-{NN}{分册字母}-{主题}.md`（例 `L0-01-旧系统知识资产.md`，
+  概述/实现配对 `L0-01i`，兄弟子文档 `L0-01j/k`）
+
 ## legacy-rewrite 1.0.1 (2026-11-10)
 
 - 产出路径对齐 project-docs specs 体系：`docs/legacy-assets.md` →

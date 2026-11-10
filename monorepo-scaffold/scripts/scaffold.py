@@ -54,11 +54,117 @@ members = ["packages/core", "apps/server", "apps/cli"]
   "name": "{name}-frontend",
   "private": true,
   "scripts": {{
+    "postinstall": "node scripts/setup_hooks.cjs",
     "dev:web": "pnpm --filter web dev",
     "build:web": "pnpm --filter web build",
     "gen:sdk": "pnpm --filter @{name}/sdk generate"
   }}
 }}
+''',
+        # ---------- 提交信息强制校验（commit 钩子，pnpm install 自动启用) ----------
+        ".githooks/commit-msg": '''#!/bin/sh
+# commit-msg 钩子：强制校验提交信息（权威说明见 README「提交与协作」/docs 规范 08-提交信息规范）
+# 启用：pnpm install 自动执行 git config core.hooksPath .githooks；手动：python scripts/install_hooks.py
+#
+# 合法形式：
+#   <type>: <主题>                        例：feat: 新增任务业务域
+#   <type>:[<需求单号>]: <主题>            例：feat:[OMS--958]: 任务采集
+#   <type>:[<需求单号>] <主题>             （] 后冒号可省）
+#   <type>(<scope>): ... 以上任意形式      例：fix(bridge):[OMS--777]: 修复推送丢失
+# 需求单号：无关联需求用 0；关联需求用系统前缀--编号（OMS--958 等），字母数字均可
+
+msg_file="$1"
+first=$(head -n 1 "$msg_file")
+
+# merge/revert 系统生成的提交放行
+case "$first" in
+  "Merge "*|"Revert "*) exit 0;;
+esac
+
+fail() {
+  echo "" >&2
+  echo "✗ 提交信息不符合规范" >&2
+  echo "  要求格式：<type>:[<需求单号>]: <中文主题>，单行、动词开头、≤30 字、不加句号" >&2
+  echo "  type 取值：feat / fix / refactor / docs / chore / build / test" >&2
+  echo "  需求单号：无关联用 [0]，关联需求用 [OMS--958] 形式（可省略）" >&2
+  echo "  示例：feat:[OMS--958]: 任务采集批量上报" >&2
+  echo "  当前首行：$first" >&2
+  echo "" >&2
+  exit 1
+}
+
+# 第一步：type[(scope)]: 前缀
+if ! printf '%s' "$first" | grep -Eq '^(feat|fix|refactor|docs|chore|build|test)(\\([a-zA-Z0-9_-]+\\))?:'; then
+  fail
+fi
+
+rest=$(printf '%s' "$first" | sed -E 's/^(feat|fix|refactor|docs|chore|build|test)(\\([a-zA-Z0-9_-]+\\))?://')
+
+# 第二步：可选 [需求单号] 标记（] 后冒号可有可无，之后必须有空格 + 主题）
+if printf '%s' "$rest" | grep -Eq '^\\[[^][]+\\]:? .+'; then
+  subject=$(printf '%s' "$rest" | sed -E 's/^\\[[^][]+\\]:? //')
+elif printf '%s' "$rest" | grep -Eq '^ .+'; then
+  subject=$(printf '%s' "$rest" | sed -E 's/^ //')
+else
+  fail
+fi
+
+# 主题长度软校验（超 30 字仅提示，不阻断）
+len=$(printf '%s' "$subject" | wc -m)
+if [ "$len" -gt 30 ]; then
+  echo "提示：主题建议 ≤30 字（当前 $len 字符）：$subject" >&2
+fi
+exit 0
+''',
+        "scripts/install_hooks.py": '''#!/usr/bin/env python3
+"""启用提交信息强制校验钩子（幂等，可重复执行）。
+
+pnpm install 时由 scripts/setup_hooks.cjs 自动调用（node/npm 环境无需手动）；
+纯 Python / 未跑 install 的环境手动执行一次：python scripts/install_hooks.py
+原理：git config core.hooksPath .githooks —— 本仓库的 .githooks/ 即钩子目录。
+"""
+from __future__ import annotations
+
+import subprocess
+import sys
+from pathlib import Path
+
+HOOKS_DIR = ".githooks"
+
+
+def main() -> int:
+    # 与 verify_project.py 同样的控制台防护：不可编码字符降级，不在启用入口崩溃
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, OSError, ValueError):
+            pass
+    root = Path(__file__).resolve().parent.parent
+    if not (root / HOOKS_DIR / "commit-msg").is_file():
+        print(f"FAIL: 找不到 {HOOKS_DIR}/commit-msg（请在仓库根执行）")
+        return 1
+    r = subprocess.run(["git", "config", "--local", "core.hooksPath", HOOKS_DIR],
+                       capture_output=True, text=True, cwd=root)
+    if r.returncode != 0:
+        print(f"FAIL: git 不可用（非 git 仓库或未安装 git）: {r.stderr.strip()}")
+        return 1
+    print("已启用提交信息强制校验: core.hooksPath = .githooks")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+''',
+        "scripts/setup_hooks.cjs": '''// pnpm install 收尾自动启用提交信息钩子（任何失败都不阻断安装）
+const { execSync } = require("child_process");
+
+try {
+  execSync("git config --local core.hooksPath .githooks", { stdio: "pipe" });
+  console.log("已启用提交信息钩子（.githooks/commit-msg）");
+} catch (e) {
+  console.warn("跳过提交钩子启用（手动可跑 python scripts/install_hooks.py）: "
+    + String(e.message).split("\\n")[0]);
+}
 ''',
         "docker-compose.yml": '''services:
   server:
@@ -96,6 +202,21 @@ python apps/desktop/main.py                     # 桌面 pywebview（需先 pnpm
 ```
 分层规则见 SKILL/references/architecture.md：core 禁止框架 import。
 架构自检: python scripts/verify_project.py --project . --test
+
+## 提交与协作（强制）
+
+提交信息强制校验随 `pnpm install` 自动启用（`scripts/setup_hooks.cjs` 执行
+`git config core.hooksPath .githooks`）；不跑 install 的环境手动执行一次
+`python scripts/install_hooks.py`。不符合格式的提交会被 `commit-msg` 钩子拒绝
+（merge/revert 系统提交放行，主题超 30 字仅提示）。
+
+格式 `<type>:[<需求单号>]: <中文主题>`：
+
+- type：feat / fix / refactor / docs / chore / build / test
+- 需求单号：无关联需求占位 `[0]`；关联需求用 `[前缀--编号]`（如 `[OMS--958]`，可省略）
+- 主题：单行、动词开头、≤30 字、不加句号；scope 可选（`fix(bridge):[OMS--777]: 修复推送丢失`）
+- **一次提交一个意图**：禁止把无关改动混入同一提交；提交前 `git status` + `git diff` 核对
+- 提交规范正文（项目建了 docs 仓库时）：`docs/conventions/08-提交信息规范.md`
 ''',
         ".github/workflows/ci.yml": '''name: ci
 on: [push, pull_request]
@@ -823,6 +944,8 @@ mkdir -p sidecar && cp dist/server-sidecar.exe sidecar/
 npm run dist   # electron-builder，extraResources 已配置
 ```
 
+> 注：以上为 bash 语法，Windows 换用等价命令（`Copy-Item`/`mkdir`）；pyinstaller 的 `--add-data` 在 Windows 上分隔符是 `;`（如 `"web_dist;web_dist"`）。
+
 ## 何时选 Electron（对比 pywebview）
 
 需要 electron-updater 自动更新、系统托盘、跨 OS 一致的 Chromium 渲染、成熟崩溃上报时选它；
@@ -831,7 +954,7 @@ npm run dist   # electron-builder，extraResources 已配置
         }, pkg, name)
     else:
         files |= F({
-            "apps/desktop/requirements.txt": "pywebview>=5.2\nuvicorn\n\n# 打包: pip install pyinstaller && pyinstaller --windowed --add-data \"../web/dist:web\" main.py\n",
+            "apps/desktop/requirements.txt": "pywebview>=5.2\nuvicorn\n\n# 打包: pip install pyinstaller && pyinstaller --windowed --add-data \"../web/dist:web\" main.py\n# (Windows 上 --add-data 的路径分隔符是 \";\"，即 --add-data \"../web/dist;web\")\n",
             "apps/desktop/main.py": f'''"""桌面壳：在线模式加载云端/本地 web 构建；离线模式内嵌 FastAPI + SQLite。"""
 
 import os
@@ -946,20 +1069,30 @@ def main() -> None:
             print(f"跳过（已存在）: {rel}")
             continue
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
+        # 二进制写入：内容含 \n 的 sh 脚本/yaml 保持 LF，避免 Windows 文本模式翻成 CRLF
+        path.write_bytes(content.encode("utf-8"))
         created += 1
         print(f"生成: {rel}")
 
-    # 随产物分发架构自检器（CI 的 verify 步骤依赖它；单文件、纯标准库）
-    verify_src = Path(__file__).resolve().parent / "verify_project.py"
+    # 随产物分发架构自检器（CI 的 verify 步骤依赖它；单文件、纯标准库）。
+    # 自检器的权威源在 arch-verify skill（output-spec.md 定义），本脚本按顺序探测候选路径
+    # 做最佳努力 vendoring；skill 保持独立——找不到源时优雅降级为安装指引，不报错。
+    candidates = [
+        Path(__file__).resolve().parent / "verify_project.py",           # 本 skill 自带
+        Path(__file__).resolve().parent.parent.parent
+        / "arch-verify" / "scripts" / "verify_project.py",               # 同侧安装的 arch-verify
+    ]
+    verify_src = next((c for c in candidates if c.exists()), None)
     verify_dst = root / "scripts" / "verify_project.py"
-    if verify_src.exists() and (args.force or not verify_dst.exists()):
+    if verify_src and (args.force or not verify_dst.exists()):
         verify_dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(verify_src, verify_dst)
         created += 1
-        print("生成: scripts/verify_project.py")
-    elif not verify_src.exists():
-        print("警告: 技能目录缺少 verify_project.py，请手动补入 <项目>/scripts/ 后再跑 CI")
+        print(f"生成: scripts/verify_project.py（vendoring 自 {verify_src}）")
+    elif not verify_src:
+        print("提示: 未找到 arch-verify 的 verify_project.py（未安装 arch-verify skill？）")
+        print("      请手动复制到 <项目>/scripts/verify_project.py 后再跑 verify/CI，")
+        print("      或跳过 vendoring 直接运行: python <arch-verify>/scripts/verify_project.py --project .")
 
     print(f"\n完成：{created} 个文件 → {root}")
     print("下一步：")

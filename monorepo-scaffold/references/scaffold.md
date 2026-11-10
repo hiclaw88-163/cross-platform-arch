@@ -17,6 +17,8 @@ my-app/
 ├── pnpm-workspace.yaml  # 前端 workspace
 ├── pyproject.toml       # uv workspace 成员声明
 ├── .github/workflows/ci.yml
+├── .githooks/commit-msg  # 提交信息强制校验钩子（pnpm install 自动启用）
+├── scripts/              # install_hooks.py / setup_hooks.cjs / verify_project.py（vendoring）
 └── README.md
 ```
 

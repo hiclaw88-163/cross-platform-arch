@@ -3,7 +3,7 @@ name: monorepo-scaffold
 description: 从零搭建「一核多端」Monorepo 项目：脚手架生成、OpenAPI 契约打通各端 TS SDK、演示链路跑通、设计系统生成。TRIGGER when 新建一核多端项目、生成 Monorepo 骨架、打通 OpenAPI 契约到各端 SDK、页面太丑要升级设计系统；DO NOT TRIGGER when 只做架构设计或选型问答（用 cross-platform-design）、旧项目功能迁移（用 legacy-rewrite）、仅验收已有项目（用 arch-verify）。
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "1.0.2"
   author: WorkBuddy Agent
 ---
 
@@ -18,7 +18,7 @@ python scripts/scaffold.py --name my-app --dir /path/to/my-app
 # 桌面端想用 Electron：--desktop electron（生成 Electron 主进程 + Python sidecar 模板）
 ```
 
-生成内容：`apps/server`（FastAPI）、`apps/cli`（Typer）、`apps/web`（Vue3+Vite）、`apps/desktop`（pywebview 壳，或 `--desktop electron` 时生成 Electron 主进程 + sidecar 入口）、`apps/uniapp`（小程序+App 占位）、`packages/core`（六边形分层核心）、`packages/sdk`（OpenAPI 生成脚本）、docker-compose、CI 配置。结构与关键文件说明见 `references/scaffold.md`。
+生成内容：`apps/server`（FastAPI）、`apps/cli`（Typer）、`apps/web`（Vue3+Vite）、`apps/desktop`（pywebview 壳，或 `--desktop electron` 时生成 Electron 主进程 + sidecar 入口）、`apps/uniapp`（小程序+App 占位）、`packages/core`（六边形分层核心）、`packages/sdk`（OpenAPI 生成脚本）、docker-compose、CI 配置、**提交信息强制校验**（`.githooks/commit-msg` 钩子 + `pnpm install` 自动启用）。结构与关键文件说明见 `references/scaffold.md`。
 
 ## 生成后必须立即验证（把架构约束交给机器判定）
 

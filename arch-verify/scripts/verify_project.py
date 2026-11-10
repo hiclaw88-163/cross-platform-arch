@@ -47,6 +47,9 @@ def check_manifest(root: Path, pkg: str) -> list[str]:
         "packages/sdk/src/gen/openapi.sha256",  # 契约指纹(新鲜度门禁比对基准)
         "scripts/verify_project.py",
         ".github/workflows/ci.yml",
+        ".githooks/commit-msg",        # 提交信息强制校验钩子（README 提交与协作节）
+        "scripts/install_hooks.py",    # 钩子启用器（sync.py/setup_hooks.cjs 之外的纯 Python 入口）
+        "scripts/setup_hooks.cjs",     # pnpm install 自动启用钩子的 Node 收尾脚本
         "docker-compose.yml", ".env.example",
     ]
     missing = [p for p in required if not (root / p).exists()]
@@ -217,10 +220,13 @@ def check_sdk_freshness(root: Path) -> list[str]:
 
 def check_tests(root: Path) -> list[str]:
     import subprocess
-    r = subprocess.run(
-        ["uv", "run", "pytest", "packages/core/tests", "-q"],
-        cwd=root, capture_output=True, text=True, timeout=600,
-    )
+    try:
+        r = subprocess.run(
+            ["uv", "run", "pytest", "packages/core/tests", "-q"],
+            cwd=root, capture_output=True, text=True, timeout=600,
+        )
+    except FileNotFoundError:
+        return ["uv 不可用（未安装或不在 PATH）: 无法运行核心测试，请安装 uv 或去掉 --test"]
     tail = (r.stdout + r.stderr).strip().splitlines()[-1:] or [""]
     return [] if r.returncode == 0 else [f"核心测试未通过: {tail[0]}"]
 
@@ -248,7 +254,20 @@ def check_empty_packages(root: Path) -> list[str]:
     return fails
 
 
+def _safe_stdout() -> None:
+    """Windows GBK 控制台防护: ✗/✓/— 等符号无法编码会让 print 崩溃。
+
+    只把不可编码字符降级为 ?（中文正常显示），不改变控制台编码本身。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, OSError, ValueError):
+            pass
+
+
 def main() -> int:
+    _safe_stdout()
     ap = argparse.ArgumentParser()
     ap.add_argument("--project", required=True, help="生成的项目根目录")
     ap.add_argument("--test", action="store_true", help="同时运行核心层测试")

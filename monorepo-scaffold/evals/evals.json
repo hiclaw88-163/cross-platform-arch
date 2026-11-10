@@ -9,7 +9,8 @@
         "先运行 scaffold.py 生成项目而非手写全部文件",
         "生成的 packages/core 不 import 任何框架",
         "运行 ../arch-verify 的 verify_project.py 且结果为 PASS",
-        "说明 CLI 进程内直调核心、桌面端为壳的通信方式"
+        "说明 CLI 进程内直调核心、桌面端为壳的通信方式",
+        "后续提交按 <type>:[<需求单号>]: <中文主题> 格式（.githooks/commit-msg 会强制校验）"
       ]
     },
     {

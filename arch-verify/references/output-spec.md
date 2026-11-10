@@ -3,7 +3,11 @@
 > 回答两个问题：**脚手架最终产出什么？怎么判定它合格？**
 > 机器判定入口：`scripts/verify_project.py --project <项目目录> --test`
 
-## 1. 产出清单（43 个文件；--desktop electron 为 45 个，机器可查）
+## 1. 产出清单（模板 46 个文件；`--desktop electron` 为 48 个，机器可查）
+
+> 另有 vendoring 的 `scripts/verify_project.py`（+1，复制自 arch-verify skill 的
+> `scripts/verify_project.py`，最佳努力：该 skill 未安装时输出手动安置指引），总计
+> pywebview 47 个 / electron 49 个。
 
 脚手架以 `--name my-app` 为例的固定产物（verify_project.py 已内置此清单检查）：
 
@@ -11,6 +15,7 @@
 |---|---|---|
 | 工作区 | `pyproject.toml` / `pnpm-workspace.yaml` / `package.json` | uv + pnpm 双工作区定义 |
 | 工程化 | `.github/workflows/ci.yml` / `docker-compose.yml` / `.env.example` / `.gitignore` / `README.md` | CI、本地编排、环境变量样例 |
+| 提交门禁 | `.githooks/commit-msg` / `scripts/install_hooks.py` / `scripts/setup_hooks.cjs` | 提交信息强制校验钩子 + 启用器（pnpm install 自动 / 纯 Python 手动） |
 | **核心** | `packages/core/src/<pkg>_core/domain/task.py` | 领域实体 + 业务规则（唯一规则源） |
 | | `.../application/ports.py` | 仓储接口（Protocol，依赖倒置的关键） |
 | | `.../application/usecases.py` | 用例编排（create/list） |
@@ -20,7 +25,7 @@
 | | `.../adapters/repo.py` / `orm.py` | SQLAlchemy 适配器实现 ports |
 | | `apps/server/Dockerfile` | 镜像构建 |
 | CLI | `apps/cli/src/cli/main.py` / `repo.py` | Typer 命令；local 模式用自带 stdlib sqlite3 适配器（零框架） |
-| 自检 | `scripts/verify_project.py` | 随产物分发的架构自检器（CI verify 步骤依赖） |
+| 自检 | `scripts/verify_project.py` | 随产物分发的架构自检器（CI verify 步骤依赖；vendoring 自本 skill，本 skill 升级后需对已生成项目重新复制） |
 | 设计 | `docs/design-decisions.md` | 设计决策记录（阶段 3.5 设计包流程必产物；verify 清单含此项） |
 | Web | `apps/web/src/App.vue` / `main.ts` / `styles/tokens.css` / `vite.config.ts` | Vue3 页面 + 设计 token（唯一颜色来源） |
 | 桌面 | `apps/desktop/main.py`（pywebview）或 `main.js` + `apps/server/sidecar_entry.py`（Electron） | 壳，加载 web 构建产物 |

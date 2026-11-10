@@ -7,7 +7,8 @@
 行为:
     1. 按 templates/ 生成骨架: AGENTS.md、README.md、TODO.md、
        conventions/00-项目配置.md、conventions/规范索引.md、conventions/规范模板.md、
-       adr/ADR-模板.md、specs/README.md（层级字母↔子目录映射入口，默认 TOGAF 映射）,
+       conventions/提交信息规范.md、adr/ADR-模板.md、specs/README.md
+       （层级字母↔子目录映射入口，默认 TOGAF 映射）,
        以及 guides/ plans/ scripts/ 空目录(.gitkeep)
     2. 仅替换 {project}/{projectName} 两个占位符; 其余占位符（{basePackage}、{date}、
        {owners}…）保留原样, 由人按项目事实填写
@@ -30,6 +31,7 @@ FILES = [
     ("conventions/00-项目配置.md", "conventions/00-项目配置.md"),
     ("conventions/规范索引.md", "conventions/规范索引.md"),
     ("conventions/规范模板.md", "conventions/01-规范模板.md"),
+    ("conventions/提交信息规范.md", "conventions/08-提交信息规范.md"),
     ("adr/ADR-模板.md", "adr/ADR-001-结论式标题.md"),
     ("specs/README.md", "specs/README.md"),
 ]
@@ -70,7 +72,7 @@ def main() -> int:
         if out_rel not in NO_AUTO_REPLACE:
             for k, v in replacements.items():
                 text = text.replace(k, v)
-        dst.write_text(text, encoding="utf-8")
+        dst.write_bytes(text.encode("utf-8"))
         created.append(out_rel)
 
     for d in EMPTY_DIRS:
