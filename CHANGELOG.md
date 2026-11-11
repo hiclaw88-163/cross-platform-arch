@@ -1,5 +1,12 @@
 # Changelog
 
+## cross-platform-design 1.0.2 (2026-11-11)
+
+- v2.0.4 复核补第二条 eval（对齐其他 skill 各 2 条的覆盖）：契约流水线触发
+  场景——"server 新加接口，前端/CLI 怎么跟上"；expectations 覆盖 gen:sdk 重跑、
+  契约指纹漂移 FAIL、仅改 core 不需重跑三层要点。evals.json 结构经
+  validate_skill 校验合法
+
 ## repo 2.0.5 (2026-11-11)
 
 - tools/validate_skill.py 版本校验容忍行尾注释：`version: "1.2.0"  # note` 此前

@@ -10,6 +10,16 @@
         "提到 Electron 离线模式为 Python sidecar（端口握手 + /health 轮询）",
         "说明两壳可共存可切换，核心层零改动"
       ]
+    },
+    {
+      "id": 2,
+      "prompt": "server 新加了一个接口，前端和 CLI 怎么跟上？会不会有验收卡住？",
+      "expected_output": "契约流水线：重跑 gen:sdk 更新 SDK 类型与指纹，否则 verify 契约新鲜度门禁 FAIL",
+      "expectations": [
+        "提到 pnpm gen:sdk 重新生成 SDK 类型（schema.d.ts）与 openapi.sha256 契约指纹",
+        "说明 verify 的契约新鲜度门禁会重算指纹比对，OpenAPI 变更后不重跑即 FAIL（防契约漂移）",
+        "提到仅改 core 业务规则不涉及 OpenAPI 时无需重跑 gen:sdk"
+      ]
     }
   ]
 }

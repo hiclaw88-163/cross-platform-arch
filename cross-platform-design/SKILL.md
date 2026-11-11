@@ -3,7 +3,7 @@ name: cross-platform-design
 description: 「一核多端」统一应用架构的设计与评审规约。TRIGGER when 设计或评审支持 CLI/Web/桌面/小程序/App 多端的软件架构、多端技术选型问答（桌面用 Electron 还是 pywebview、小程序框架选型）、评估新业务如何复用这套架构；DO NOT TRIGGER when 要从零搭建新项目（用 monorepo-scaffold）、要验收项目是否符合架构（用 arch-verify）、要把旧项目功能迁移进来（用 legacy-rewrite）。
 license: MIT
 metadata:
-  version: "1.0.1"
+  version: "1.0.2"
 ---
 
 # 一核多端（One Core, Multi-Client）统一应用架构
