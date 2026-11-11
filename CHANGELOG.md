@@ -1,5 +1,12 @@
 # Changelog
 
+## monorepo-scaffold 1.1.6 (2026-11-11)
+
+- 移除 JWT_SECRET 死配置（实测全仓库无读取，用户身份为写死的 DEMO_USER，
+  compose 却强制 `JWT_SECRET:?` 会让使用者误以为已有鉴权）：从 .env.example 与
+  docker-compose.yml 删除；生成 README 新增「后续接入」一节写明"鉴权尚未实现，
+  DEMO_USER 为占位"
+
 ## monorepo-scaffold 1.1.5 (2026-11-11)
 
 - 桌面外壳健壮性四项（无桌面环境，静态检查 + 最小脚本模拟验证）：

@@ -195,7 +195,6 @@ try {
     ports: ["8000:8000"]
     environment:
       - DATABASE_URL=postgresql+psycopg://app:app@db:5432/app
-      - JWT_SECRET=${JWT_SECRET:?set_jwt_secret}
     depends_on:
       db:
         condition: service_healthy
@@ -215,7 +214,7 @@ try {
 volumes:
   pgdata:
 ''',
-        ".env.example": "JWT_SECRET=change-me\nDATABASE_URL=sqlite:///./dev.db\n",
+        ".env.example": "DATABASE_URL=sqlite:///./dev.db\n",
         "docs/design-decisions.md": f'''# {name} 设计决策记录（ADR）
 
 > 阶段 3.5 设计包流程必产物：技术/设计决策可追溯。决策变更时升版并在对应小节补记。
@@ -241,7 +240,7 @@ volumes:
         "README.md": f'''# {name}（一核多端架构）
 
 ```bash
-cp .env.example .env                            # JWT_SECRET 等环境变量（docker compose 自动读取）
+cp .env.example .env                            # 环境变量（docker compose 自动读取）
 uv sync && pnpm install
 pnpm gen:sdk                                    # 生成 SDK 类型与契约指纹（verify 契约新鲜度门禁依赖）
 uv run uvicorn server.main:app --reload         # server（根目录即可，workspace 已装 server/cli）
@@ -253,6 +252,10 @@ python apps/desktop/main.py                     # 桌面 pywebview（需先 pnpm
 ```
 分层规则见 SKILL/references/architecture.md：core 禁止框架 import。
 架构自检: python scripts/verify_project.py --project . --test
+
+## 后续接入
+
+- **鉴权尚未实现**：用户身份为占位 `DEMO_USER`（`apps/server/src/server/routes/tasks.py`），不存在 JWT_SECRET 配置——落地鉴权时再引入，勿误以为已有保护。
 
 ## 提交与协作（强制）
 
