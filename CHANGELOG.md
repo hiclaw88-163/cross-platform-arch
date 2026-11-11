@@ -113,6 +113,9 @@
   install_hooks.py 启用时幂等补 +x（zip/Windows 拷贝丢权限位曾让 Linux/macOS
   上钩子被 git 静默忽略）；仓库自身 `.githooks/commit-msg` 与
   `install_impeccable.sh` 的 git 索引模式 100644→100755
+- package.sh 补可执行位（git 索引 100644→100755，`./package.sh` 不再
+  Permission denied）；核对仓库全部 `#!` 脚本：`.sh` 与钩子均 100755，
+  `.py` 均为 `python xxx.py` 调用、文档无 `./` 直执行写法，保持 644
 - install_hooks.py 改为以 `git rev-parse --show-toplevel` 从 cwd 定位目标仓库：
   把 `.githooks/` 拷到其他仓库后，在该仓库里执行同样生效（原实现锁定脚本自身
   所在项目，拷贝场景必失效）
