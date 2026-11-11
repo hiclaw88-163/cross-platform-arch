@@ -1,5 +1,16 @@
 # Changelog
 
+## monorepo-scaffold 1.1.3 (2026-11-11)
+
+- 修复生成项目 `apps/server/Dockerfile` 构建必失败：原 COPY 只含根 pyproject 与
+  core/server 源码、缺 `apps/server/pyproject.toml`，`uv pip install .` 触发
+  "Workspace member is missing"。改为复制全部 workspace 成员的包定义（含
+  apps/cli/pyproject.toml，仅定义不需源码），直接安装 `./packages/core
+  ./apps/server`。uv 镜像 `latest` 固定为 0.13.7（注释说明可升级）；加非 root
+  用户（useradd + USER，/app 归属应用用户）。验证：按 COPY 清单模拟复制后
+  `uv pip install ./packages/core ./apps/server` 成功，`import server.main,
+  my_app_core` OK
+
 ## arch-verify 1.1.4 (2026-11-11)
 
 - 修复验收漏洞：显式传 `--test` 而核心测试因缺 uv 被跳过时，此前整体仍 PASS、

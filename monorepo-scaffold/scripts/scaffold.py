@@ -440,14 +440,23 @@ packages = ["src/server"]
 FROM python:3.12-slim
 WORKDIR /app
 
-# 安装 uv 并复制 workspace 关键部分
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+# uv 固定版本保证构建可复现（升级时改这一行即可）
+COPY --from=ghcr.io/astral-sh/uv:0.13.7 /uv /uvx /bin/
+
+# workspace 上下文必须完整：根 pyproject.toml 声明了 core/server/cli 三个成员，
+# 少任一成员的包定义 uv 都会拒绝解析（"Workspace member is missing"）
 COPY pyproject.toml ./
 COPY packages/core/pyproject.toml packages/core/pyproject.toml
 COPY packages/core/src packages/core/src
+COPY apps/server/pyproject.toml apps/server/pyproject.toml
 COPY apps/server/src apps/server/src
+COPY apps/cli/pyproject.toml apps/cli/pyproject.toml
+RUN uv pip install --system --no-cache ./packages/core ./apps/server
 
-RUN uv pip install --system --no-cache .
+# 非 root 运行；应用目录归属应用用户（可读可写，SQLite 数据库落在 /app 下也能建）
+RUN useradd -m appuser && chown -R appuser:appuser /app
+USER appuser
+
 CMD ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ''',
         "apps/server/src/server/__init__.py": "",
