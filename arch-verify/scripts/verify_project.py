@@ -275,49 +275,79 @@ def check_dep_direction(root: Path) -> list[str]:
 _END_IMPORT_WHITELIST = {"desktop": {"server"}}
 
 
-def check_hexagonal(root: Path) -> list[str]:
+def check_hexagonal(root: Path) -> tuple[bool, list[str]]:
     """六边形门禁(规约 R4 + 端间隔离,见 references/hexagonal-arch.md):
 
     1. 引擎必须提供 bridge.py 作为唯一出桥模块;
-    2. 各端只允许 `from <engine>.bridge import ...` 触达引擎,
-       直接 import 引擎内部子包即违规;
+    2. 各端只允许 `from <engine>.bridge import ...` 触达引擎(ast 解析,
+       `from engine import (a, b)` 多名导入同样被检查),直接 import 引擎
+       内部子包即违规;
     3. 端之间禁止互相 import(白名单除外)。
-    该类违规不崩构建——只是让"一核多端"退化成"多核各自为政",
-    依赖方向错误会在数月后才以语义漂移的形式爆发,必须机器拦截。
+
+    返回 (是否执行, 违规列表)。项目没有 packages/engine(如 monorepo-scaffold
+    生成的 core-only 拓扑)时检查**显式 SKIP**——绝不谎报"桥闭合"。
+    扫描 apps/* 时排除 .venv/node_modules/__pycache__ 等目录。
     """
     eng_src = root / "packages/engine/src"
-    ends_root = root / "apps"
-    if not eng_src.is_dir() or not ends_root.is_dir():
-        return []
-    inner = [d.name for d in eng_src.iterdir()
-             if d.is_dir() and (d / "__init__.py").exists()]
+    if not eng_src.is_dir():
+        return False, []
+    inner = sorted(d.name for d in eng_src.iterdir()
+                   if d.is_dir() and (d / "__init__.py").exists())
     if not inner:
-        return []
+        return False, []
+    if len(inner) > 1:
+        # iterdir 顺序不确定，多引擎包时取哪个都无依据——显式报错而不是碰运气
+        return True, [f"packages/engine/src 下发现多个引擎包 {inner}——"
+                      "应只有一个，无法确定六边形桥检查对象"]
     engpkg = inner[0]
     fails: list[str] = []
     if not (eng_src / engpkg / "bridge.py").exists():
         fails.append(f"引擎缺少 {engpkg}/bridge.py——端与引擎之间必须有唯一六边形桥")
-    import re
-    eng_imp = re.compile(
-        rf"^\s*(?:from|import)\s+{engpkg}(?:\s+import\s+(\w+)|\.([\w.]+))", re.M)
-    end_names = [d.name for d in ends_root.iterdir() if d.is_dir()]
+
+    ends_root = root / "apps"
+    end_names = sorted(d.name for d in ends_root.iterdir()
+                       if d.is_dir() and d.name not in EXCLUDED_DIRS) if ends_root.is_dir() else []
+
     for end in end_names:
         for f in (ends_root / end).rglob("*.py"):
-            text = f.read_text(encoding="utf-8", errors="ignore")
-            for m in eng_imp.finditer(text):
-                mod = m.group(1) or (m.group(2).split(".")[0] if m.group(2) else "")
-                if mod and mod != "bridge":
-                    fails.append(
-                        f"{f.relative_to(root)} 直接 import {engpkg}.{mod}"
-                        f"——端只允许经 {engpkg}.bridge 触达引擎(规约 R4)")
-            for other in end_names:
-                if other == end or other in _END_IMPORT_WHITELIST.get(end, ()):
-                    continue
-                if re.search(rf"^\s*(?:from|import)\s+{other}\b", text, re.M):
-                    fails.append(
-                        f"{f.relative_to(root)} import 了端 {other}"
-                        "——端之间禁止互相引用(见 clients.md §2 关系矩阵)")
-    return fails
+            if any(part in EXCLUDED_DIRS for part in f.parts):
+                continue
+            try:
+                tree = ast.parse(f.read_text(encoding="utf-8", errors="ignore"))
+            except (SyntaxError, ValueError):
+                continue
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        parts = alias.name.split(".")
+                        if parts[0] == engpkg:
+                            fails.append(
+                                f"{f.relative_to(root)}:{node.lineno} 直接 import "
+                                f"{alias.name}——端只允许经 {engpkg}.bridge 触达引擎(规约 R4)")
+                        elif parts[0] in end_names and parts[0] != end and \
+                                parts[0] not in _END_IMPORT_WHITELIST.get(end, ()):
+                            fails.append(
+                                f"{f.relative_to(root)}:{node.lineno} import 了端 {parts[0]}"
+                                "——端之间禁止互相引用(见 clients.md §2 关系矩阵)")
+                elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                    parts = node.module.split(".")
+                    if parts[0] == engpkg:
+                        # from engine import bridge → 放行名字 bridge；
+                        # from engine import bridge, store / from engine.store import x → 违规
+                        if len(parts) == 1:
+                            bad = [a.name for a in node.names if a.name != "bridge"]
+                        else:
+                            bad = [".".join([engpkg, *parts[1:]])]
+                        for name in bad:
+                            fails.append(
+                                f"{f.relative_to(root)}:{node.lineno} 直接 import "
+                                f"{name}——端只允许经 {engpkg}.bridge 触达引擎(规约 R4)")
+                    elif parts[0] in end_names and parts[0] != end and \
+                            parts[0] not in _END_IMPORT_WHITELIST.get(end, ()):
+                        fails.append(
+                            f"{f.relative_to(root)}:{node.lineno} import 了端 {parts[0]}"
+                            "——端之间禁止互相引用(见 clients.md §2 关系矩阵)")
+    return True, fails
 
 
 _VAR_REF = re.compile(r"var\(\s*(--[\w-]+)")
@@ -448,16 +478,25 @@ def main() -> int:
     pkgs = [d.name for d in src.iterdir() if d.is_dir() and d.name.endswith("_core")] if src.is_dir() else []
     pkg = pkgs[0].removesuffix("_core") if pkgs else "app"
 
-    fails: list[str] = []
-    fails += check_manifest(root, pkg)
-    fails += check_core_purity(root, pkg)
-    fails += check_dep_direction(root)
-    fails += check_hexagonal(root)
-    fails += check_token_closure(root)
-    fails += check_sdk_freshness(root)
-    fails += check_empty_packages(root)
+    # 每项检查带"是否真正执行"标记：PASS 行只列真正执行过的检查项，
+    # 被跳过的项显式输出 SKIP——绝不谎报(如无 engine 项目谎报"六边形桥闭合")
+    results: list[tuple[str, bool, list[str]]] = [
+        ("结构完整", True, check_manifest(root, pkg)),
+        ("核心纯净", True, check_core_purity(root, pkg)),
+        ("依赖方向", True, check_dep_direction(root)),
+    ]
+    hexa_done, hexa_fails = check_hexagonal(root)
+    results.append(("六边形桥", hexa_done, hexa_fails))
+    results += [
+        ("Token 闭合", True, check_token_closure(root)),
+        ("契约新鲜度", True, check_sdk_freshness(root)),
+        ("无空包残留", True, check_empty_packages(root)),
+    ]
     if args.test:
-        fails += check_tests(root)
+        results.append(("核心测试", True, check_tests(root)))
+
+    fails = [m for _, done, ms in results if done for m in ms]
+    skipped = [name for name, done, _ in results if not done]
 
     print(f"项目: {root}")
     print(f"包名: {pkg}_core")
@@ -465,8 +504,13 @@ def main() -> int:
         print(f"\nFAIL — {len(fails)} 项违规:")
         for f in fails:
             print(f"  ✗ {f}")
+        if skipped:
+            print(f"SKIP: {'、'.join(skipped)} 检查未执行")
         return 1
-    print("\nPASS — 结构完整、核心纯净、依赖方向正确、六边形桥闭合、Token 闭合、契约新鲜、无空包残留" + ("、测试通过" if args.test else ""))
+    executed = "、".join(name for name, done, _ in results if done)
+    print(f"\nPASS — 已执行检查: {executed}")
+    for name in skipped:
+        print(f"SKIP: 未发现 packages/engine，{name}检查未执行")
     return 0
 
 

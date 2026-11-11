@@ -46,6 +46,16 @@
 - pyproject 依赖解析：tomllib（3.11+）优先、3.9/3.10 手写括号深度回退；包名
   规范化（PEP 503），正确处理 extras（pydantic[email]、~=、==、环境标记）。
   验证：四种绕过写法（extras/~= 动态导入/黑名单外框架）均 FAIL，原样 PASS
+- check_hexagonal 重写：ast 解析端源码 import（原正则对 `from engine import
+  (a, b)`/`from engine import bridge, store` 漏报），多名导入与 engine.store
+  子路径都被拦下；多引擎包显式报错（不再依赖 iterdir 不确定顺序）；扫描
+  apps/* 排除 .venv/node_modules/__pycache__
+- 六边形桥检查显式 SKIP：无 packages/engine 的项目（如本仓库脚手架生成的
+  core-only 拓扑）此前静默空跑却谎报"六边形桥闭合"；现在 main() 按检查项
+  收集 (是否执行, 违规) 结构，PASS 行只列真正执行过的检查，无 engine 时输出
+  "SKIP: 未发现 packages/engine，六边形桥检查未执行"。SKILL.md 检查清单同步
+  修正。验证：无 engine 项目输出 SKIP 且不含"桥闭合"；fixture
+  `from engine import bridge, store` → FAIL 指认 store
 - check_sdk_freshness：探针改为参数列表常量 OPENAPI_PROBE_CMD（与 generate.mjs
   逐字一致，消除 shell 引号差异）；stdout 统一 CRLF→LF 后求哈希；对占位指纹给
   出独立提示（区别于真实契约漂移）
