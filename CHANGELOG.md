@@ -53,6 +53,11 @@
   留给项目真实规范），索引补路由行。验证：init_docs.py 重新生成，conventions/
   下编号无冲突
 
+## project-docs 1.2.1 (2026-11-11)
+
+- 「08-提交信息规范」模板同步提交钩子强制规则（详见 repo 2.0.3 条目）：
+  单号必填、示例带单号、规则重排
+
 ## monorepo-scaffold 1.1.1 (2026-11-11)
 
 - 自检器 vendoring 去跨 skill 运行时依赖：scaffold 自带同源副本

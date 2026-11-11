@@ -13,6 +13,8 @@
 本仓库附加:
   - 引用闭合: SKILL.md 正文里提到的 references/…、scripts/…、evals/… 相对路径必须存在
     （各 skill 完全独立、互不依赖，禁止 ../ 跨 skill 文件引用）
+  - 版本一致性: frontmatter metadata.version 必须等于 CHANGELOG.md 中该 skill
+    最新条目（第一个 `## <skill名> x.y.z`）的版本号
   - evals/evals.json 存在时校验结构（skill_name 与 frontmatter.name 一致、条目键齐全）
 """
 from __future__ import annotations
@@ -46,6 +48,14 @@ def parse_frontmatter(content: str) -> tuple[dict[str, str] | None, str | None]:
         k, _, v = line.partition(":")
         fm[k.strip()] = v.strip()
     return fm, None
+
+
+def metadata_version(content: str) -> str | None:
+    """提取嵌套键 metadata.version（轻量解析，无 PyYAML；version 是缩进子键，
+    parse_frontmatter 顶层扫描看不到它）。"""
+    fm_text = content.split("\n---", 1)[0]
+    m = re.search(r'^metadata:\s*$(?:\n[ \t]+version:\s*"?([^"\n]+)"?)?', fm_text, re.M)
+    return m.group(1).strip() if m and m.group(1) else None
 
 
 def validate_one(root: Path) -> str | None:
@@ -120,6 +130,19 @@ def validate_one(root: Path) -> str | None:
             if authority.read_bytes() != vendored.read_bytes():
                 return ("vendored scripts/verify_project.py 与 arch-verify 权威版本"
                         "不一致——两份必须同源（以 arch-verify 为准同步）")
+
+    # 版本一致性：frontmatter metadata.version 必须等于 CHANGELOG 中该 skill
+    # 最新条目（第一个 `## <skill名> x.y.z`）的版本号——改版漏更其一即漂移
+    ver = metadata_version(content)
+    if ver:
+        changelog = root.parent / "CHANGELOG.md"
+        if changelog.exists():
+            m = re.search(rf"^## {re.escape(name)} (\d+\.\d+\.\d+)\b",
+                          changelog.read_text(encoding="utf-8"), re.M)
+            latest = m.group(1) if m else None
+            if latest != ver:
+                return (f"版本不一致: SKILL.md metadata.version={ver}, "
+                        f"CHANGELOG.md 最新 {name} 条目={latest or '无条目'}")
 
     # evals.json 可选校验
     ev_path = root / "evals/evals.json"
