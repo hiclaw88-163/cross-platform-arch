@@ -27,7 +27,7 @@
 - 产出：桌面双击即用的应用
 
 ### P4 小程序/App（1-2 天）
-- [ ] uniapp 请求层 + 列表/新增页
+- [ ] uniapp 统一请求层（脚手架仅生成 request.ts，页面骨架与 manifest 需自建，见 apps/uniapp/README）
 - [ ] 微信开发者工具跑通（线上域名备案后替换 BASE）
 - 产出：小程序与 App 模拟器可见同一份数据
 

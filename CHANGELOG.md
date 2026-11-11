@@ -1,5 +1,14 @@
 # Changelog
 
+## monorepo-scaffold 1.1.9 (2026-11-11)
+
+- v2.0.4 复核对齐 uniapp 文档与实际产出（产出清单本身准确——output-spec 只承诺
+  request.ts + README）：uniapp README 原写"manifest.json 填 AppID""页面骨架与
+  apps/web 同构"但两样都不生成，现明确标注页面骨架与 manifest 不在产出内需自建；
+  request.ts 注释删去"鉴权头集中在此"的不实声明（未接 SDK、无鉴权头），注明
+  鉴权落地后在 api() 里集中补；playbook.md P4 清单项"请求层 + 列表/新增页"
+  改为"统一请求层（页面骨架与 manifest 需自建）"
+
 ## monorepo-scaffold 1.1.8 (2026-11-11)
 
 - v2.0.4 复核修正：1.1.4 条目原写"第一次真正请求数据时才报错"与实测相反——

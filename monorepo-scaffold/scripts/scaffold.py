@@ -1155,12 +1155,16 @@ if __name__ == "__main__":
     files |= F({
         "apps/uniapp/README.md": '''# uniapp 端（微信小程序 + App 一码双投）
 
-1. HBuilderX 打开本目录，manifest.json 填小程序 AppID。
+> 现状：脚手架只生成统一请求层 `src/api/request.ts`；页面骨架与 manifest.json
+> **不在产出内**，需用 HBuilderX 自建——页面交互参考 apps/web 的列表/新增表单。
+
+1. HBuilderX 打开本目录（或新建项目导入），manifest.json 填小程序 AppID（脚手架未生成该文件，需自建）。
 2. src/api/request.ts 里配置 API_BASE（线上需 ICP 备案 + 微信后台 request 合法域名）。
 3. 运行 → 运行到小程序模拟器；发行 → 原生 App 云打包。
-4. 页面骨架与 apps/web 同构：列表 + 新增表单，统一走 SDK 请求层。
+4. 页面调用 `api()` 发请求；当前未接 packages/sdk、无鉴权头——鉴权落地后在 `api()` 里集中补。
 ''',
-        "apps/uniapp/src/api/request.ts": '''// 统一请求层：超时/错误码/鉴权头集中在此，页面禁止手写 URL
+        "apps/uniapp/src/api/request.ts": '''// 统一请求层：超时/错误码集中在此，页面禁止手写 URL
+// 暂未接 packages/sdk、无鉴权头——鉴权落地后在 api() 里集中加鉴权头
 export const API_BASE = "http://127.0.0.1:8000/api/v1"; // 上线前替换为备案域名
 
 export async function api<T>(path: string, options: UniApp.RequestOptions = {}): Promise<T> {
