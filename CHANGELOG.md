@@ -1,5 +1,15 @@
 # Changelog
 
+## monorepo-scaffold 1.2.0 (2026-11-11)
+
+- v2.0.4 复核两个健壮性小修：Electron 离线模式 spawn sidecar 前先
+  `fs.mkdirSync(userData, { recursive: true })`（userData 目录不保证已存在，
+  pywebview 侧已有同样处理）；路由 get_repo 惰性兜底——未经 lifespan 的场景
+  （如 TestClient 不加 with 直接发请求）app.state.repo 缺失会 500，现缺时现建
+  并缓存（SqlTaskRepository 函数内延迟导入，顶层仍不引 adapters）。验证见
+  本轮回归：TestClient 无 with 请求 200、node --check 通过、全流程
+  gen:sdk → verify --test PASS
+
 ## monorepo-scaffold 1.1.9 (2026-11-11)
 
 - v2.0.4 复核对齐 uniapp 文档与实际产出（产出清单本身准确——output-spec 只承诺

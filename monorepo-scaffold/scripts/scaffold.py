@@ -590,8 +590,19 @@ DEMO_USER = "u1"  # 鉴权落地后替换为 Depends(get_current_user)
 
 
 def get_repo(request: Request) -> TaskRepository:
-    """取启动期创建的仓储（main.py lifespan 初始化，导入期不连数据库）。"""
-    return request.app.state.repo
+    """取仓储：lifespan 启动期创建（见 main.py）。
+
+    惰性兜底：未经 lifespan 启动的场景（如 TestClient 不加 with 直接发请求）
+    app.state.repo 不存在，这里现建并缓存，避免路由 500。
+    """
+    repo = getattr(request.app.state, "repo", None)
+    if repo is None:
+        from server.adapters.repo import SqlTaskRepository
+
+        repo = SqlTaskRepository()
+        repo.init_db()
+        request.app.state.repo = repo
+    return repo
 
 
 class TaskIn(BaseModel):
@@ -897,6 +908,7 @@ onMounted(load);
             "apps/desktop/main.js": '''// Electron 桌面壳：在线模式（WEB_URL）直接加载；离线模式拉起 Python sidecar
 const { app, BrowserWindow } = require("electron");
 const { spawn } = require("node:child_process");
+const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
 
@@ -933,6 +945,8 @@ async function resolveBaseUrl() {
     process.env.SIDECAR_EXE ||
     path.join(process.resourcesPath, "sidecar",
       process.platform === "win32" ? "server-sidecar.exe" : "server-sidecar");
+  // userData 目录不保证已存在（Chromium 启动时通常会创建，但没有保证），先建目录
+  fs.mkdirSync(app.getPath("userData"), { recursive: true });
   sidecar = spawn(exe, [], {
     windowsHide: true,
     // 打包后安装目录常只读，SQLite 放用户数据目录；SQLAlchemy URL 用正斜杠
