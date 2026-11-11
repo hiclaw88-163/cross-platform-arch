@@ -256,6 +256,7 @@ python apps/desktop/main.py                     # 桌面 pywebview（需先 pnpm
 ## 后续接入
 
 - **鉴权尚未实现**：用户身份为占位 `DEMO_USER`（`apps/server/src/server/routes/tasks.py`），不存在 JWT_SECRET 配置——落地鉴权时再引入，勿误以为已有保护。
+- **CORS 白名单**：经 `CORS_ORIGINS` 环境变量配置（逗号分隔）；开发默认放行 Vite 5173 两个来源，桌面离线模式 API 与页面同源伺服、不经 CORS。
 
 ## 提交与协作（强制）
 
@@ -471,13 +472,25 @@ USER appuser
 CMD ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ''',
         "apps/server/src/server/__init__.py": "",
-        "apps/server/src/server/main.py": '''from contextlib import asynccontextmanager
+        "apps/server/src/server/main.py": '''import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from server.adapters.repo import SqlTaskRepository
 from server.routes.tasks import router as tasks_router
+
+
+def _cors_origins() -> list[str]:
+    """来源白名单：CORS_ORIGINS 逗号分隔，未设置时用开发默认（Vite 5173）。
+
+    桌面离线模式 API 与页面同源伺服，不经 CORS，无需额外配置。
+    """
+    raw = os.environ.get("CORS_ORIGINS")
+    if raw is not None:
+        return [o.strip() for o in raw.split(",") if o.strip()]
+    return ["http://localhost:5173", "http://127.0.0.1:5173"]
 
 
 def create_app() -> FastAPI:
@@ -492,7 +505,10 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="{name}", version="0.1.0", lifespan=lifespan)
     app.add_middleware(
-        CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
+        CORSMiddleware,
+        allow_origins=_cors_origins(),
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
     app.include_router(tasks_router, prefix="/api/v1")
 

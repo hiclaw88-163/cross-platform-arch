@@ -1,5 +1,14 @@
 # Changelog
 
+## monorepo-scaffold 1.1.7 (2026-11-11)
+
+- 收紧 CORS 默认值：`allow_origins=["*"]` 改为 `_cors_origins()`——`CORS_ORIGINS`
+  环境变量逗号分隔，未设置时默认放行 Vite 开发端口（vite.config.ts 未改端口，
+  默认 5173）的 localhost/127.0.0.1 两个来源；桌面离线模式 API 与页面同源伺服、
+  不经 CORS，无需额外配置。生成 README「后续接入」补 CORS 说明。验证：默认/
+  覆盖/空串三种取值输出正确；web 开发流程走 Vite 代理（同源），不受影响；
+  verify --test PASS
+
 ## monorepo-scaffold 1.1.6 (2026-11-11)
 
 - 移除 JWT_SECRET 死配置（实测全仓库无读取，用户身份为写死的 DEMO_USER，
