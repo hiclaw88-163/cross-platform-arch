@@ -187,12 +187,34 @@ volumes:
   pgdata:
 ''',
         ".env.example": "JWT_SECRET=change-me\nDATABASE_URL=sqlite:///./dev.db\n",
+        "docs/design-decisions.md": f'''# {name} 设计决策记录（ADR）
+
+> 阶段 3.5 设计包流程必产物：技术/设计决策可追溯。决策变更时升版并在对应小节补记。
+
+## D-1 一核多端架构
+
+- 背景：{name} 需要覆盖 Web/桌面/CLI（及小程序）端
+- 决策：业务规则只写在 packages/core（domain/application），各端为薄壳适配器
+- 理由：规则单源，各端行为自动一致；新增端只写协议转换，不复制业务逻辑
+- 后果：core 禁止框架 import（verify 核心纯净性门禁强制）
+
+## D-2 设计 token
+
+- 决策：颜色/字号/间距唯一来源为 apps/web/src/styles/tokens.css
+- 约束：组件内禁止硬编码色值；token 引用必须闭合（verify 检查项强制）
+
+## D-3 契约流水线
+
+- 决策：server OpenAPI 变更后必须重跑 `pnpm gen:sdk`（生成 schema.d.ts 并写入契约指纹 openapi.sha256）
+- 约束：verify_project.py 的契约新鲜度门禁重算指纹比对，漂移即 FAIL
+''',
         ".gitignore": "__pycache__/\n.venv/\nnode_modules/\ndist/\n*.db\n.env\n",
         "README.md": f'''# {name}（一核多端架构）
 
 ```bash
 cp .env.example .env                            # JWT_SECRET 等环境变量（docker compose 自动读取）
 uv sync && pnpm install
+pnpm gen:sdk                                    # 生成 SDK 类型与契约指纹（verify 契约新鲜度门禁依赖）
 uv run uvicorn server.main:app --reload         # server（根目录即可，workspace 已装 server/cli）
 uv run {name}-cli add "hello"                   # CLI
 pnpm dev:web                                    # Web
@@ -226,16 +248,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - run: uv sync
-      - name: 架构约束校验（结构/核心纯净/依赖方向）
-        run: python scripts/verify_project.py --project .
-      - run: uv run pytest
       - uses: pnpm/action-setup@v4
         with: { version: 9 }
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
+      # 顺序关键：先生成 SDK 与契约指纹，verify 的契约新鲜度门禁才有比对基准——首次 push 即绿
+      - run: uv sync
       # 首次本地 pnpm install 后提交 pnpm-lock.yaml，之后可改回 --frozen-lockfile
-      - run: pnpm install
+      - run: pnpm install        # postinstall 顺带启用提交信息钩子
+      - run: pnpm gen:sdk        # 离线探针生成 schema.d.ts + openapi.sha256
+      - name: 架构约束校验（结构/核心纯净/依赖方向/Token 闭合/契约新鲜度）
+        run: python scripts/verify_project.py --project .
+      - run: uv run pytest
       - run: pnpm build:web
 ''',
     }, pkg, name)
@@ -1030,16 +1054,69 @@ export async function api<T>(path: string, options: UniApp.RequestOptions = {}):
   }}
 }}
 ''',
-        "packages/sdk/generate.mjs": '''// 从 FastAPI 拉取 openapi.json 生成 TS 类型（契约流水线的第一步）
-// 先起 server: uv run uvicorn server.main:app --port 8000
-import { execSync } from "node:child_process";
+        "packages/sdk/generate.mjs": '''// 契约流水线第一步：离线生成 SDK——不依赖运行中的 server
+// 流程: ①探针(uv run python -c "…app.openapi()")导出 OpenAPI JSON → 临时文件
+//       ②openapi-typescript 生成 src/gen/schema.d.ts
+//       ③sha256(探针 stdout，规范化 CRLF→LF) 写入 src/gen/openapi.sha256
+// 指纹必须与 arch-verify verify_project.py::check_sdk_freshness 重算口径一致：
+// 同一条探针命令 + 同样的换行规范化，否则 Windows 上永远"契约漂移"。
+import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-execSync(
-  "npx openapi-typescript http://127.0.0.1:8000/openapi.json -o src/gen/schema.d.ts",
-  { stdio: "inherit" },
+const here = dirname(fileURLToPath(import.meta.url)); // packages/sdk
+const repoRoot = dirname(dirname(here)); // monorepo 根（uv workspace 根）
+
+// 与 verify_project.py 的 OPENAPI_PROBE_CMD 保持逐字一致
+const probeArgs = [
+  "run",
+  "python",
+  "-c",
+  "import json; from server.main import app; print(json.dumps(app.openapi()))",
+];
+
+const stdout = execFileSync("uv", probeArgs, {
+  cwd: repoRoot,
+  encoding: "utf8",
+  stdio: ["ignore", "pipe", "inherit"],
+});
+// Windows 下 stdout 可能是 CRLF；verify 端 text=True 已统一为 LF，这里同步规范化
+const normalized = stdout.replace(/\\r\\n/g, "\\n");
+const sha = createHash("sha256").update(normalized, "utf8").digest("hex");
+
+// 直接以 node 执行 openapi-typescript 的 bin 入口：Windows 下 spawnSync("npx",…)
+// 会因 .cmd 垫片 ENOENT，这里从本包 devDependencies 解析入口，跨平台稳定
+const require_ = createRequire(import.meta.url);
+const tsPkgJson = require_.resolve("openapi-typescript/package.json");
+const tsPkgDir = dirname(tsPkgJson);
+const tsBin = join(
+  tsPkgDir,
+  JSON.parse(readFileSync(tsPkgJson, "utf8")).bin["openapi-typescript"],
 );
-console.log("SDK 生成完成 → packages/sdk/src/gen/schema.d.ts");
+
+const tmp = mkdtempSync(join(tmpdir(), "openapi-"));
+try {
+  const jsonFile = join(tmp, "openapi.json");
+  writeFileSync(jsonFile, normalized, "utf8");
+  execFileSync(process.execPath, [tsBin, jsonFile, "-o", "src/gen/schema.d.ts"], {
+    cwd: here,
+    stdio: "inherit",
+  });
+} finally {
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+writeFileSync(join(here, "src/gen/openapi.sha256"), sha + "\\n", "utf8");
+console.log("SDK 生成完成 → packages/sdk/src/gen/{schema.d.ts, openapi.sha256}");
 ''',
+        "packages/sdk/src/gen/schema.d.ts": '''// 占位产物：真实类型由 `pnpm gen:sdk`（openapi-typescript）生成，脚本为 packages/sdk/generate.mjs
+export {};
+''',
+        "packages/sdk/src/gen/openapi.sha256": "placeholder-run-pnpm-gen-sdk\n",
     }, pkg, name)
 
     return files
@@ -1097,6 +1174,7 @@ def main() -> None:
     print(f"\n完成：{created} 个文件 → {root}")
     print("下一步：")
     print("  uv sync && pnpm install")
+    print("  pnpm gen:sdk                 # 生成 SDK 类型与契约指纹（verify 契约新鲜度门禁依赖）")
     print("  uv run pytest packages/core/tests")
     print("  uv run uvicorn server.main:app --reload  （根目录即可，workspace 已装 server/cli）")
 

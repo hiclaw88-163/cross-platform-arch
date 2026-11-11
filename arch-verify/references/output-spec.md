@@ -3,11 +3,11 @@
 > 回答两个问题：**脚手架最终产出什么？怎么判定它合格？**
 > 机器判定入口：`scripts/verify_project.py --project <项目目录> --test`
 
-## 1. 产出清单（模板 46 个文件；`--desktop electron` 为 48 个，机器可查）
+## 1. 产出清单（模板 49 个文件；`--desktop electron` 为 51 个，机器可查）
 
 > 另有 vendoring 的 `scripts/verify_project.py`（+1，复制自 arch-verify skill 的
 > `scripts/verify_project.py`，最佳努力：该 skill 未安装时输出手动安置指引），总计
-> pywebview 47 个 / electron 49 个。
+> pywebview 50 个 / electron 52 个。
 
 脚手架以 `--name my-app` 为例的固定产物（verify_project.py 已内置此清单检查）：
 
@@ -30,7 +30,8 @@
 | Web | `apps/web/src/App.vue` / `main.ts` / `styles/tokens.css` / `vite.config.ts` | Vue3 页面 + 设计 token（唯一颜色来源） |
 | 桌面 | `apps/desktop/main.py`（pywebview）或 `main.js` + `apps/server/sidecar_entry.py`（Electron） | 壳，加载 web 构建产物 |
 | 小程序/App | `apps/uniapp/src/api/request.ts` + README | uni-app 请求封装与运行说明 |
-| 契约 | `packages/sdk/generate.mjs` / `package.json` | OpenAPI → TS SDK 生成脚本 |
+| 契约 | `packages/sdk/generate.mjs` / `package.json` | 离线探针生成脚本（uv probe → openapi-typescript，不依赖运行中的 server） |
+| | `packages/sdk/src/gen/schema.d.ts` / `openapi.sha256` | 契约产物与指纹（脚手架放占位，`pnpm gen:sdk` 生成真实值；verify 契约新鲜度门禁比对） |
 
 **可变部分**：应用名/包名（`--name` 注入）、桌面壳类型（`--desktop`）、以及你随后填充的业务内容。骨架本身是固定的，这是"多项目一致"的保证。
 
@@ -61,16 +62,22 @@ web 端（App.vue / styles/*.css）引用的每个 `var(--x)` 必须在 `tokens.
 ```bash
 # 1. 结构 + 约束 + 单测（一条命令）
 python verify_project.py --project . --test
-# 期望: PASS — 结构完整、核心纯净、依赖方向正确、Token 闭合、测试通过
+# 期望: PASS — 结构完整、核心纯净、依赖方向正确、Token 闭合、契约新鲜、测试通过
 
-# 2. server 全链路（根目录直接跑，workspace 已装 server/cli）
+# 2. 契约流水线（不依赖运行中的 server；verify 的契约新鲜度门禁依赖此步）
+uv sync && pnpm install && pnpm gen:sdk
+# 无 node 环境: 生成后补跑一次指纹步骤即可 PASS——
+#   sha256( uv run python -c "import json; from server.main import app; print(json.dumps(app.openapi()))" 的 stdout )
+#   （CRLF 统一按 LF 规范化后求哈希，写入 packages/sdk/src/gen/openapi.sha256）
+
+# 3. server 全链路（根目录直接跑，workspace 已装 server/cli）
 uv run uvicorn server.main:app --port 8000
 curl localhost:8000/health                     # {"status":"ok"}
 curl -X POST localhost:8000/api/v1/tasks -H "Content-Type: application/json" -d '{"title":"写周报"}'
 curl -X POST localhost:8000/api/v1/tasks -H "Content-Type: application/json" -d '{"title":"a"}'
 # 期望: 422 + 中文错误提示（核心业务规则经 API 生效）
 
-# 3. CLI 全链路（根目录）
+# 4. CLI 全链路（根目录）
 uv run my-app-cli add "hello" && uv run my-app-cli list
 ```
 

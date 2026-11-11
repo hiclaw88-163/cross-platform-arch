@@ -26,6 +26,13 @@ FORBIDDEN_IN_CORE = {
     "fastapi", "sqlalchemy", "typer", "uvicorn", "httpx", "requests",
     "pydantic", "flask", "django", "starlette", "rich", "click", "aiohttp",
 }
+
+# 契约探针命令（参数列表形式，不用 shell 拼串）：必须与 monorepo-scaffold 生成的
+# packages/sdk/generate.mjs 里的 probeArgs 逐字一致——两端对同一份规范化文本求哈希。
+OPENAPI_PROBE_CMD = [
+    "uv", "run", "python", "-c",
+    "import json; from server.main import app; print(json.dumps(app.openapi()))",
+]
 def check_manifest(root: Path, pkg: str) -> list[str]:
     required = [
         "pyproject.toml", "pnpm-workspace.yaml", "package.json",
@@ -201,20 +208,22 @@ def check_sdk_freshness(root: Path) -> list[str]:
         return []  # 缺产物由结构完整性检查负责
     import hashlib
     import subprocess
-    probe = ("uv run python -c "
-             '"import json; from server.main import app; '
-             'print(json.dumps(app.openapi()))"')
-    r = subprocess.run(probe, shell=True, cwd=root,
+    r = subprocess.run(OPENAPI_PROBE_CMD, cwd=root,
                        capture_output=True, text=True, timeout=300)
     if r.returncode != 0:
         tail = (r.stderr.strip().splitlines() or ["导出失败"])[-1]
         return [f"无法从 server.main 导出 openapi.json,契约新鲜度不可验证: {tail}"]
-    current = hashlib.sha256(r.stdout.encode()).hexdigest()
+    # 换行规范化：Windows 下 text=True 已把 \r\n 统一为 \n，这里再兜底一次，
+    # 与 generate.mjs 的 .replace(/\r\n/g, "\n") 保持同一份规范化文本口径。
+    current = hashlib.sha256(r.stdout.replace("\r\n", "\n").encode()).hexdigest()
     hash_file = gen_dir / "openapi.sha256"
     if not hash_file.exists():
         return ["缺少 packages/sdk/src/gen/openapi.sha256——运行 gen:sdk 记录契约指纹"]
-    if hash_file.read_text(encoding="utf-8").strip() != current:
-        return ["契约漂移: server 契约已变更但 SDK 未重新生成——运行 gen:sdk 后重试"]
+    recorded = hash_file.read_text(encoding="utf-8").strip()
+    if recorded != current:
+        if re.fullmatch(r"[0-9a-f]{64}", recorded):
+            return ["契约漂移: server 契约已变更但 SDK 未重新生成——运行 gen:sdk 后重试"]
+        return ["契约指纹仍是脚手架占位值——运行 pnpm gen:sdk 生成 SDK 与真实指纹后重试"]
     return []
 
 

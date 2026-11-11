@@ -1,5 +1,36 @@
 # Changelog
 
+## repo 2.0.3 (2026-11-11)
+
+- 修复「脚手架产物过不了自家门禁」：scaffold 补齐 `docs/design-decisions.md` 与
+  `packages/sdk/src/gen/{schema.d.ts, openapi.sha256}`（脚手架放占位）；产出清单
+  口径更新为 pywebview 50 / electron 52（含 vendoring 自检器）
+- generate.mjs 重写为离线探针（uv probe → 临时文件 → openapi-typescript），不再
+  依赖运行中的 server；sha256(规范化 stdout) 写入 openapi.sha256，与 verify 的
+  check_sdk_freshness 逐字同一条探针命令 + 同一换行规范化（CRLF→LF），Windows
+  不再永远"契约漂移"
+- 生成的 ci.yml 调整为 `uv sync → pnpm install → pnpm gen:sdk → verify → pytest
+  → build:web`：先生成 SDK 与指纹再验收，首次 push 即绿
+- Windows 实测：生成 → uv sync → pnpm gen:sdk → verify --test PASS；改 server
+  路由不重生成 → 契约漂移 FAIL；electron 模式同样 PASS
+
+## monorepo-scaffold 1.1.0 (2026-11-11)
+
+- 新增产物：`docs/design-decisions.md`（ADR 最小模板）、`packages/sdk/src/gen/
+  schema.d.ts`（占位）与 `openapi.sha256`（占位，verify 对占位值给出明确提示）
+- generate.mjs 离线化：探针命令与 arch-verify 的 OPENAPI_PROBE_CMD 逐字一致；
+  openapi-typescript 改经 createRequire 解析 bin 入口以 node 直接执行（Windows
+  spawnSync("npx") 对 .cmd 垫片 ENOENT）
+- 生成 README/下一步提示补 `pnpm gen:sdk`（契约指纹步骤）
+
+## arch-verify 1.1.0 (2026-11-11)
+
+- check_sdk_freshness：探针改为参数列表常量 OPENAPI_PROBE_CMD（与 generate.mjs
+  逐字一致，消除 shell 引号差异）；stdout 统一 CRLF→LF 后求哈希；对占位指纹给
+  出独立提示（区别于真实契约漂移）
+- output-spec.md：产出清单 46/48→49/51（+vendoring 50/52），补契约产物行与
+  「无 node 环境补指纹步骤」说明
+
 ## repo 2.0.2 (2026-11-10)
 
 - 接入提交信息规范（收编自 rfid-collector-app §13.1，泛化为通用约束）：
