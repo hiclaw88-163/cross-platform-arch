@@ -11,7 +11,12 @@ for dir in "$REPO_DIR"/*/; do
   name="$(basename "$dir")"
   [ -f "$dir/SKILL.md" ] || continue
   mkdir -p "$DEST/$name"
-  rsync -a --delete --exclude '.git' "$dir" "$DEST/$name/"
+  # 排除项与 sync.py 的 IGNORE_DIRS 保持一致（缓存/依赖/IDE 目录不进产物）
+  rsync -a --delete \
+    --exclude '.git' --exclude '__pycache__' --exclude '.venv' \
+    --exclude 'node_modules' --exclude '.pytest_cache' --exclude '.ruff_cache' \
+    --exclude '.mypy_cache' --exclude '.idea' --exclude '.vscode' \
+    "$dir" "$DEST/$name/"
   echo "synced: $name -> $DEST/$name"
   count=$((count+1))
 done
