@@ -30,7 +30,9 @@ FILES = [
     ("TODO.md", "TODO.md"),
     ("conventions/00-项目配置.md", "conventions/00-项目配置.md"),
     ("conventions/规范索引.md", "conventions/规范索引.md"),
-    ("conventions/规范模板.md", "conventions/01-规范模板.md"),
+    # 规范模板用 99 号：01-08 留给项目真实规范（01-命名空间、02-分层…、08-提交信息），
+    # 模板是空壳样板，不占用真实编号（曾与索引路由 01-命名空间.md 冲突）
+    ("conventions/规范模板.md", "conventions/99-规范模板.md"),
     ("conventions/提交信息规范.md", "conventions/08-提交信息规范.md"),
     ("adr/ADR-模板.md", "adr/ADR-001-结论式标题.md"),
     ("specs/README.md", "specs/README.md"),
