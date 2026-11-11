@@ -3,7 +3,7 @@ name: project-docs
 description: 项目文档体系（docs 仓库）标准结构与脚手架。TRIGGER when 为新项目搭建文档体系/docs 仓库、整改散乱的项目文档、写 AGENTS.md/规范索引/ADR/00-项目配置、决定某份文档该放哪、文档之间冲突不知道以谁为准；DO NOT TRIGGER when 生成代码工程脚手架（用 monorepo-scaffold）、编写单篇业务文档的正文内容、多端架构设计问答（用 cross-platform-design）。
 license: MIT
 metadata:
-  version: "1.2.0"
+  version: "1.2.1"
   author: WorkBuddy Agent
 ---
 

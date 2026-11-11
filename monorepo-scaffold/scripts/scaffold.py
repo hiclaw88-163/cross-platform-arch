@@ -66,12 +66,11 @@ members = ["packages/core", "apps/server", "apps/cli"]
 # commit-msg 钩子：强制校验提交信息（权威说明见 README「提交与协作」/docs 规范 08-提交信息规范）
 # 启用：pnpm install 自动执行 git config core.hooksPath .githooks；手动：python scripts/install_hooks.py
 #
-# 合法形式：
-#   <type>: <主题>                        例：feat: 新增任务业务域
-#   <type>:[<需求单号>]: <主题>            例：feat:[OMS--958]: 任务采集
-#   <type>:[<需求单号>] <主题>             （] 后冒号可省）
-#   <type>(<scope>): ... 以上任意形式      例：fix(bridge):[OMS--777]: 修复推送丢失
-# 需求单号：无关联需求用 0；关联需求用系统前缀--编号（OMS--958 等），字母数字均可
+# 合法形式（单号必填，无关联需求占位 [0]）：
+#   <type>:[<需求单号>]: <主题>             例：feat:[OMS--958]: 任务采集
+#   <type>(<scope>):[<需求单号>]: <主题>    scope 可选，例：fix(bridge):[OMS--777]: 修复推送丢失
+#   （] 后冒号可省，但必须有空格接主题）
+# 强制项：type 白名单 / 单号必填 / 主题 ≤30 字（按字符计数）/ 不以句号（。或 .）结尾
 
 msg_file="$1"
 first=$(head -n 1 "$msg_file")
@@ -86,7 +85,7 @@ fail() {
   echo "✗ 提交信息不符合规范" >&2
   echo "  要求格式：<type>:[<需求单号>]: <中文主题>，单行、动词开头、≤30 字、不加句号" >&2
   echo "  type 取值：feat / fix / refactor / docs / chore / build / test" >&2
-  echo "  需求单号：无关联用 [0]，关联需求用 [OMS--958] 形式（可省略）" >&2
+  echo "  需求单号：必填，无关联用 [0]，关联需求用 [OMS--958] 形式" >&2
   echo "  示例：feat:[OMS--958]: 任务采集批量上报" >&2
   echo "  当前首行：$first" >&2
   echo "" >&2
@@ -100,19 +99,29 @@ fi
 
 rest=$(printf '%s' "$first" | sed -E 's/^(feat|fix|refactor|docs|chore|build|test)(\\([a-zA-Z0-9_-]+\\))?://')
 
-# 第二步：可选 [需求单号] 标记（] 后冒号可有可无，之后必须有空格 + 主题）
+# 第二步：[需求单号] 必填（] 后冒号可省，之后必须有空格 + 主题）
 if printf '%s' "$rest" | grep -Eq '^\\[[^][]+\\]:? .+'; then
   subject=$(printf '%s' "$rest" | sed -E 's/^\\[[^][]+\\]:? //')
-elif printf '%s' "$rest" | grep -Eq '^ .+'; then
-  subject=$(printf '%s' "$rest" | sed -E 's/^ //')
 else
   fail
 fi
 
-# 主题长度软校验（超 30 字仅提示，不阻断）
-len=$(printf '%s' "$subject" | wc -m)
+# 第三步：不加句号——拒绝末尾的中文句号与英文句点
+if printf '%s' "$subject" | grep -Eq '[。.]$'; then
+  fail
+fi
+
+# 主题 ≤30 字，强制拒绝。优先 python3 按字符计数（C locale 下 wc -m 按字节计，
+# 中文会被误判超长）；无 python3 时退回 awk（gawk 在 UTF-8 locale 下按字符计数）
+if command -v python3 >/dev/null 2>&1; then
+  len=$(printf '%s' "$subject" | python3 -c "import sys; print(len(sys.stdin.read()))")
+else
+  len=$(printf '%s' "$subject" | awk '{print length($0)}')
+fi
 if [ "$len" -gt 30 ]; then
-  echo "提示：主题建议 ≤30 字（当前 $len 字符）：$subject" >&2
+  echo "" >&2
+  echo "✗ 主题超长：$len 字符（上限 30）——$subject" >&2
+  exit 1
 fi
 exit 0
 ''',
@@ -241,14 +250,15 @@ python apps/desktop/main.py                     # 桌面 pywebview（需先 pnpm
 
 提交信息强制校验随 `pnpm install` 自动启用（`scripts/setup_hooks.cjs` 执行
 `git config core.hooksPath .githooks`）；不跑 install 的环境手动执行一次
-`python scripts/install_hooks.py`。不符合格式的提交会被 `commit-msg` 钩子拒绝
-（merge/revert 系统提交放行，主题超 30 字仅提示）。
+`python scripts/install_hooks.py`。不符合格式的提交会被 `commit-msg` 钩子
+**拒绝**（merge/revert 系统提交放行）：type 白名单、单号必填、主题超 30 字、
+以句号（。或 .）结尾——命中任一条即拦截。
 
 格式 `<type>:[<需求单号>]: <中文主题>`：
 
 - type：feat / fix / refactor / docs / chore / build / test
-- 需求单号：无关联需求占位 `[0]`；关联需求用 `[前缀--编号]`（如 `[OMS--958]`，可省略）
-- 主题：单行、动词开头、≤30 字、不加句号；scope 可选（`fix(bridge):[OMS--777]: 修复推送丢失`）
+- 需求单号：**必填**，无关联需求占位 `[0]`；关联需求用 `[前缀--编号]`（如 `[OMS--958]`）
+- 主题：单行、动词开头、≤30 字（按字符计数）、不加句号；scope 可选（`fix(bridge):[OMS--777]: 修复推送丢失`）
 - **一次提交一个意图**：禁止把无关改动混入同一提交；提交前 `git status` + `git diff` 核对
 - 提交规范正文（项目建了 docs 仓库时）：`docs/conventions/08-提交信息规范.md`
 ''',

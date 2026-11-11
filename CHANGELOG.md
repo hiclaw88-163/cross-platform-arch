@@ -5,6 +5,9 @@
 - 修复「脚手架产物过不了自家门禁」：scaffold 补齐 `docs/design-decisions.md` 与
   `packages/sdk/src/gen/{schema.d.ts, openapi.sha256}`（脚手架放占位）；产出清单
   口径更新为 pywebview 50 / electron 52（含 vendoring 自检器）
+- 提交钩子真正强制（详见 arch-verify 1.1.0 与 monorepo-scaffold 1.1.0 条目）：
+  拒绝句号/超长（按字符计数）/缺单号；project-docs「08-提交信息规范」模板同步
+  （单号必填、示例带单号、规则重排），project-docs 1.2.1
 - generate.mjs 重写为离线探针（uv probe → 临时文件 → openapi-typescript），不再
   依赖运行中的 server；sha256(规范化 stdout) 写入 openapi.sha256，与 verify 的
   check_sdk_freshness 逐字同一条探针命令 + 同一换行规范化（CRLF→LF），Windows
@@ -68,6 +71,13 @@
   当定义），兜底值引用 `var(--x, #fff)` 降级为 WARN 不 FAIL（含嵌套兜底）；扫描
   范围扩展到 .scss/.html/.ts/.tsx。验证：行内定义识别、兜底引用仅 WARN、ts
   未定义引用 FAIL、清理后恢复 PASS
+- 提交钩子真正强制（与 README 既有声明对齐）：拒绝末尾句号（。/.）、主题超
+  30 字由"仅提示"改为拒绝（UTF-8 按字符计数：优先 python3，回退 awk，替代
+  C locale 下按字节误判的 wc -m）、单号必填（`feat: 主题` 被拒，无关联用
+  [0]）。仓库 `.githooks/commit-msg` 与 scaffold 内嵌生成版本两处同源同步，
+  README/生成 README/project-docs 08 模板措辞一致。验证：11 行输入矩阵
+  （句号/句点/超长/缺单号/非法 type/bang/标准/关联单号/省冒号/边界）真实 git
+  全部符合预期，merge/revert 放行
 - output-spec.md：产出清单 46/48→49/51（+vendoring 50/52），补契约产物行与
   「无 node 环境补指纹步骤」说明
 
