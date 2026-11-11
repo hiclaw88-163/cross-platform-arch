@@ -35,6 +35,11 @@
 
 ## arch-verify 1.1.0 (2026-11-11)
 
+- check_dep_direction 重写：ast 扫描 packages/core/src/**/*.py 的 import（原来
+  只搜 pyproject 文本，core 里写 `from server.main import app` 可漏过）；端包名
+  从 apps/*/src/<包名> 与 apps/<端目录名> 动态推断，不写死；违规信息给出文件、
+  行号与被引用的端。验证：core 注入 leak.py（from server.main import app /
+  import cli）→ FAIL 且精确指认；删除后恢复 PASS
 - check_sdk_freshness：探针改为参数列表常量 OPENAPI_PROBE_CMD（与 generate.mjs
   逐字一致，消除 shell 引号差异）；stdout 统一 CRLF→LF 后求哈希；对占位指纹给
   出独立提示（区别于真实契约漂移）

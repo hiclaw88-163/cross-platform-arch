@@ -33,6 +33,11 @@ OPENAPI_PROBE_CMD = [
     "uv", "run", "python", "-c",
     "import json; from server.main import app; print(json.dumps(app.openapi()))",
 ]
+
+# 目录扫描通用排除项：虚拟环境/依赖/缓存不参与结构扫描
+EXCLUDED_DIRS = {".venv", "node_modules", "__pycache__", ".git", "dist", "build"}
+
+
 def check_manifest(root: Path, pkg: str) -> list[str]:
     required = [
         "pyproject.toml", "pnpm-workspace.yaml", "package.json",
@@ -103,14 +108,54 @@ def check_core_purity(root: Path, pkg: str) -> list[str]:
 
 
 def check_dep_direction(root: Path) -> list[str]:
-    fails: list[str] = []
-    core_meta = root / "packages/core/pyproject.toml"
-    if core_meta.exists():
-        text = core_meta.read_text(encoding="utf-8")
-        for kw in ("apps/", "fastapi", "typer"):
-            if f'"{kw}' in text:
-                fails.append(f"核心不得依赖任何端（packages/core/pyproject.toml 含 '{kw}'）")
-    return fails
+    """依赖方向检查：core 源码不得 import 任何"端"包（ast 扫描 import，非文本搜索）。
+
+    端包名动态推断，不写死：apps/<端>/src/<包名> 与 apps/<端目录名> 均视为端
+    （如 server、cli、desktop、web、uniapp）。core 是领域内核，依赖方向必须是
+    端 → core；违规信息给出文件、行号与被引用的端。
+    """
+    core_dir = root / "packages" / "core" / "src"
+    if not core_dir.is_dir():
+        return []
+    apps_dir = root / "apps"
+    end_pkgs: set[str] = set()
+    if apps_dir.is_dir():
+        for child in sorted(apps_dir.iterdir()):
+            if not child.is_dir() or child.name in EXCLUDED_DIRS:
+                continue
+            end_pkgs.add(child.name.lower())
+            src = child / "src"
+            if src.is_dir():
+                for pkg in sorted(src.iterdir()):
+                    if pkg.is_dir():
+                        end_pkgs.add(pkg.name.lower())
+    if not end_pkgs:
+        return []
+    failures: list[str] = []
+    for py in core_dir.rglob("*.py"):
+        try:
+            tree = ast.parse(py.read_text(encoding="utf-8"))
+        except (SyntaxError, ValueError, UnicodeDecodeError) as exc:
+            failures.append(f"{py.relative_to(root)}: 语法错误无法解析（{exc}）")
+            continue
+        for node in ast.walk(tree):
+            names: list[str] = []
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                # 绝对 import 才可能触达端包；相对导入(level>0)在 core 包内部，放行
+                if node.level == 0 and node.module:
+                    names = [node.module]
+            else:
+                continue
+            for name in names:
+                top = name.split(".")[0].lower()
+                if top in end_pkgs:
+                    failures.append(
+                        f"{py.relative_to(root)}:{node.lineno} "
+                        f"core 违规引用端包 {name} —— 依赖方向必须是 端 → core"
+                    )
+    return failures
 
 
 # 端间互触白名单: desktop 允许 import server 的启动装配入口(离线模式内嵌 uvicorn),
