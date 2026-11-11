@@ -63,6 +63,11 @@
 - 无 uv 优雅降级落地：shutil.which("uv") 缺失时契约新鲜度与核心测试输出 SKIP
   （带原因），不再误报 FAIL（此前报"无法导出 openapi"，与 CHANGELOG 1.0.1 的
   降级声明不符）。验证：受限 PATH 下 --test 输出三项 SKIP、其余 PASS
+- check_token_closure 修正三处误报/漏报：定义匹配不要求行首（`:root{--a:1}` 行内
+  定义曾被误判"未定义"）；先剥除 var(...) 调用再扫定义（防把 var 内部的 `--x,`
+  当定义），兜底值引用 `var(--x, #fff)` 降级为 WARN 不 FAIL（含嵌套兜底）；扫描
+  范围扩展到 .scss/.html/.ts/.tsx。验证：行内定义识别、兜底引用仅 WARN、ts
+  未定义引用 FAIL、清理后恢复 PASS
 - output-spec.md：产出清单 46/48→49/51（+vendoring 50/52），补契约产物行与
   「无 node 环境补指纹步骤」说明
 

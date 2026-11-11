@@ -352,34 +352,58 @@ def check_hexagonal(root: Path) -> tuple[bool, list[str]]:
 
 
 _VAR_REF = re.compile(r"var\(\s*(--[\w-]+)")
-_VAR_DEF = re.compile(r"^\s*(--[\w-]+)\s*:", re.MULTILINE)
+_VAR_REF_FALLBACK = re.compile(r"var\(\s*(--[\w-]+)\s*,")
+_VAR_DEF = re.compile(r"(--[\w-]+)\s*:")
+# .ts/.tsx/.html/.scss 里的 var(--x) 引用同样要闭合（样式散落在模板与组件里）
+_TOKEN_SCAN_EXTS = ("*.css", "*.scss", "*.vue", "*.html", "*.ts", "*.tsx")
 
 
-def check_token_closure(root: Path) -> list[str]:
+def _strip_var_calls(text: str) -> str:
+    """移除所有 var(...) 调用（含嵌套兜底），防止把 var 内部的 `--x,` 误认为定义。"""
+    prev = None
+    while prev != text:
+        prev = text
+        text = re.sub(r"var\([^()]*\)", "", text)
+    return text
+
+
+def check_token_closure(root: Path) -> tuple[list[str], list[str]]:
     """web 端引用的每个 var(--x) 必须有定义(tokens.css 或引用所在文件)。
 
     背景: 该类破损不报错、不崩构建——页面只是"安静地变丑/残缺",
     人工 review 极易漏检,必须机器判定。
+    返回 (违规, 警告): 定义可出现在任意位置(不要求行首)；带兜底值的引用
+    `var(--x, #fff)` 即使未定义也只是 WARN（兜底保证可用）。
     """
     web_src = root / "apps/web/src"
     if not web_src.is_dir():
-        return []
+        return [], []
     tokens = web_src / "styles/tokens.css"
     defined: set[str] = set()
     if tokens.exists():
-        defined |= set(_VAR_DEF.findall(tokens.read_text(encoding="utf-8")))
+        defined |= set(_VAR_DEF.findall(_strip_var_calls(tokens.read_text(encoding="utf-8"))))
     fails: list[str] = []
-    for f in [*web_src.rglob("*.css"), *web_src.rglob("*.vue")]:
-        if not f.is_file():
-            continue
-        text = f.read_text(encoding="utf-8")
-        local_defs = set(_VAR_DEF.findall(text))
-        for name in set(_VAR_REF.findall(text)):
-            if name not in defined and name not in local_defs:
+    warns: list[str] = []
+    files: list[Path] = []
+    for ext in _TOKEN_SCAN_EXTS:
+        files += [f for f in web_src.rglob(ext) if f.is_file()]
+    for f in files:
+        text = f.read_text(encoding="utf-8", errors="ignore")
+        local_defs = set(_VAR_DEF.findall(_strip_var_calls(text)))
+        refs = set(_VAR_REF.findall(text))
+        fallback_refs = set(_VAR_REF_FALLBACK.findall(text))
+        for name in refs:
+            if name in defined or name in local_defs:
+                continue
+            if name in fallback_refs:
+                warns.append(
+                    f"Token 引用未定义(有兜底值): {f.relative_to(root)} 引用 {name}"
+                    "——建议在 tokens.css 补定义以统一主题")
+            else:
                 fails.append(
                     f"Token 引用未定义: {f.relative_to(root)} 引用 {name}"
                     f"(tokens.css 缺该变量)")
-    return fails
+    return fails, warns
 
 
 
@@ -491,12 +515,13 @@ def main() -> int:
     # 也不把"环境缺 uv"当成架构违规 FAIL
     has_uv = shutil.which("uv") is not None
     hexa_done, hexa_fails = check_hexagonal(root)
+    token_fails, token_warns = check_token_closure(root)
     results: list[tuple[str, bool, list[str], str | None]] = [
         ("结构完整", True, check_manifest(root, pkg), None),
         ("核心纯净", True, check_core_purity(root, pkg), None),
         ("依赖方向", True, check_dep_direction(root), None),
         ("六边形桥", hexa_done, hexa_fails, "未发现 packages/engine，六边形桥检查未执行"),
-        ("Token 闭合", True, check_token_closure(root), None),
+        ("Token 闭合", True, token_fails, None),
         ("契约新鲜度", has_uv,
          check_sdk_freshness(root) if has_uv else [],
          "未检测到 uv，契约新鲜度检查跳过（无法重算契约指纹）"),
@@ -512,6 +537,8 @@ def main() -> int:
 
     print(f"项目: {root}")
     print(f"包名: {pkg}_core")
+    for w in token_warns:
+        print(f"WARN: {w}")
     if fails:
         print(f"\nFAIL — {len(fails)} 项违规:")
         for f in fails:
