@@ -25,6 +25,24 @@
   `<engine>` 占位）、去具体日期
 - output-spec.md 去时间性表述（"已实测记录（demo-app）"）
 
+## project-docs 1.2.2 (2026-11-11)
+
+- 修复规范编号冲突：生成的 `conventions/01-规范模板.md` 占用了 01 号，而
+  规范索引把 01 路由给 `01-命名空间.md`；模板改用 `99-规范模板.md`（01-08
+  留给项目真实规范），索引补路由行。验证：init_docs.py 重新生成，conventions/
+  下编号无冲突
+
+## monorepo-scaffold 1.1.1 (2026-11-11)
+
+- 自检器 vendoring 去跨 skill 运行时依赖：scaffold 自带同源副本
+  scripts/verify_project.py（与 arch-verify 权威版本字节一致），运行时不再
+  探测同侧 arch-verify skill 目录（独立性与版本漂移双保险）
+- tools/validate_skill.py 增强生效：scripts/ 内脚本禁止引用兄弟 skill 目录
+  （生成项目内部相对路径 ../web/dist 放行）；monorepo-scaffold 副本与
+  arch-verify 权威版本字节一致性强制校验。验证：篡改副本 → 校验 FAIL，
+  还原 → PASS
+- 生成 README/SKILL 验证指引更新（项目内副本为首选路径）
+
 ## repo 2.0.3 (2026-11-11)
 
 - 修复「脚手架产物过不了自家门禁」：scaffold 补齐 `docs/design-decisions.md` 与
@@ -33,6 +51,9 @@
 - 提交钩子真正强制（详见 arch-verify 1.1.0 与 monorepo-scaffold 1.1.0 条目）：
   拒绝句号/超长（按字符计数）/缺单号；project-docs「08-提交信息规范」模板同步
   （单号必填、示例带单号、规则重排），project-docs 1.2.1
+- 5 个 SKILL.md 移除 `author: WorkBuddy Agent`（README 格式约定无该字段）
+- tools/sync.sh 与 sync.py 排除项对齐（__pycache__/.venv/node_modules/缓存与
+  IDE 目录）
 - generate.mjs 重写为离线探针（uv probe → 临时文件 → openapi-typescript），不再
   依赖运行中的 server；sha256(规范化 stdout) 写入 openapi.sha256，与 verify 的
   check_sdk_freshness 逐字同一条探针命令 + 同一换行规范化（CRLF→LF），Windows

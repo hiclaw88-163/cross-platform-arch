@@ -5,9 +5,9 @@
 
 ## 1. 产出清单（模板 49 个文件；`--desktop electron` 为 51 个，机器可查）
 
-> 另有 vendoring 的 `scripts/verify_project.py`（+1，复制自 arch-verify skill 的
-> `scripts/verify_project.py`，最佳努力：该 skill 未安装时输出手动安置指引），总计
-> pywebview 50 个 / electron 52 个。
+> 另有 vendoring 的 `scripts/verify_project.py`（+1，复制自 monorepo-scaffold
+> 自带的同源副本，后者与 arch-verify 的 `scripts/verify_project.py` 字节一致、
+> 由 tools/validate_skill.py 强制校验），总计 pywebview 50 个 / electron 52 个。
 
 脚手架以 `--name my-app` 为例的固定产物（verify_project.py 已内置此清单检查）：
 
@@ -25,7 +25,7 @@
 | | `.../adapters/repo.py` / `orm.py` | SQLAlchemy 适配器实现 ports |
 | | `apps/server/Dockerfile` | 镜像构建 |
 | CLI | `apps/cli/src/cli/main.py` / `repo.py` | Typer 命令；local 模式用自带 stdlib sqlite3 适配器（零框架） |
-| 自检 | `scripts/verify_project.py` | 随产物分发的架构自检器（CI verify 步骤依赖；vendoring 自本 skill，本 skill 升级后需对已生成项目重新复制） |
+| 自检 | `scripts/verify_project.py` | 随产物分发的架构自检器（CI verify 步骤依赖；vendoring 自 monorepo-scaffold 的同源副本，与 arch-verify 权威版本字节一致） |
 | 设计 | `docs/design-decisions.md` | 设计决策记录（阶段 3.5 设计包流程必产物；verify 清单含此项） |
 | Web | `apps/web/src/App.vue` / `main.ts` / `styles/tokens.css` / `vite.config.ts` | Vue3 页面 + 设计 token（唯一颜色来源） |
 | 桌面 | `apps/desktop/main.py`（pywebview）或 `main.js` + `apps/server/sidecar_entry.py`（Electron） | 壳，加载 web 构建产物 |

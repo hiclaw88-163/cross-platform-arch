@@ -3,8 +3,7 @@ name: monorepo-scaffold
 description: 从零搭建「一核多端」Monorepo 项目：脚手架生成、OpenAPI 契约打通各端 TS SDK、演示链路跑通、设计系统生成。TRIGGER when 新建一核多端项目、生成 Monorepo 骨架、打通 OpenAPI 契约到各端 SDK、页面太丑要升级设计系统；DO NOT TRIGGER when 只做架构设计或选型问答（用 cross-platform-design）、旧项目功能迁移（用 legacy-rewrite）、仅验收已有项目（用 arch-verify）。
 license: MIT
 metadata:
-  version: "1.1.0"
-  author: WorkBuddy Agent
+  version: "1.1.1"
 ---
 
 # 从零搭建「一核多端」Monorepo 项目
@@ -22,16 +21,17 @@ python scripts/scaffold.py --name my-app --dir /path/to/my-app
 
 ## 生成后必须立即验证（把架构约束交给机器判定）
 
-运行 **arch-verify** skill 自带的 verify_project.py（该 skill 独立安装，按其实际安装路径执行）：
+运行架构自检器——生成项目已自带同源副本 `scripts/verify_project.py`
+（与 arch-verify skill 的权威版本字节一致，由仓库 tools/validate_skill.py 强制校验）：
 
 ```bash
-python <arch-verify 安装目录>/scripts/verify_project.py --project /path/to/my-app --test
+python scripts/verify_project.py --project /path/to/my-app --test   # 项目内副本
+python <arch-verify 安装目录>/scripts/verify_project.py --project /path/to/my-app --test   # 权威源（可选）
 ```
 
 七项检查（结构完整性 / 核心纯净性 / 依赖方向 / Token 引用闭合 / 六边形桥闭合+契约新鲜度 / 无空包残留 / 核心测试）详见 arch-verify skill。任何一项 FAIL 必须先修复再进入下一步。
 
 ## 跑通演示链路
-
 按 `references/playbook.md` 的演示脚本执行：实现一个最小用例（示例为"任务管理"），验证各端可见同一份数据：
 
 1. CLI：`my-app task add "hello"` → SQLite 落库

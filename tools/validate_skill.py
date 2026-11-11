@@ -91,6 +91,36 @@ def validate_one(root: Path) -> str | None:
     if bad_cross:
         return f"Cross-skill file reference(s) forbidden (skills must be self-contained): {', '.join(bad_cross)}"
 
+    # 独立性延伸：scripts/ 里的脚本禁止引用**其它 skill 目录**（skill 名取自仓库
+    # 内含 SKILL.md 的兄弟目录；生成项目内部的相对路径如 ../web/dist 不算跨 skill，
+    # 予以放行——monorepo-scaffold 曾运行时探测同侧 arch-verify，现已改为自带
+    # 同源副本）
+    if (root / "scripts").is_dir():
+        siblings = sorted(d.name for d in root.parent.iterdir()
+                          if d.is_dir() and (d / "SKILL.md").exists() and d != root)
+        if siblings:
+            sib_re = re.compile(r"\.\./(" + "|".join(re.escape(s) for s in siblings) + r")\b")
+            for script in sorted((root / "scripts").glob("*")):
+                if script.suffix not in (".py", ".sh", ".mjs", ".js", ".cjs") or not script.is_file():
+                    continue
+                text = script.read_text(encoding="utf-8", errors="ignore")
+                bad = sorted(set(sib_re.findall(text)))
+                if bad:
+                    return (f"{script.name}: cross-skill path reference(s) forbidden "
+                            f"(skills must be self-contained): "
+                            + ", ".join(f"../{s}" for s in bad))
+
+    # 同源校验：monorepo-scaffold 自带的 verify_project.py 副本必须与
+    # arch-verify 的权威版本字节一致（vendoring 依赖此副本，漂移会让生成项目
+    # 跑着旧门禁）
+    if name == "monorepo-scaffold":
+        authority = root.parent / "arch-verify" / "scripts" / "verify_project.py"
+        vendored = root / "scripts" / "verify_project.py"
+        if authority.exists() and vendored.exists():
+            if authority.read_bytes() != vendored.read_bytes():
+                return ("vendored scripts/verify_project.py 与 arch-verify 权威版本"
+                        "不一致——两份必须同源（以 arch-verify 为准同步）")
+
     # evals.json 可选校验
     ev_path = root / "evals/evals.json"
     if ev_path.exists():

@@ -1184,24 +1184,20 @@ def main() -> None:
         print(f"生成: {rel}")
 
     # 随产物分发架构自检器（CI 的 verify 步骤依赖它；单文件、纯标准库）。
-    # 自检器的权威源在 arch-verify skill（output-spec.md 定义），本脚本按顺序探测候选路径
-    # 做最佳努力 vendoring；skill 保持独立——找不到源时优雅降级为安装指引，不报错。
-    candidates = [
-        Path(__file__).resolve().parent / "verify_project.py",           # 本 skill 自带
-        Path(__file__).resolve().parent.parent.parent
-        / "arch-verify" / "scripts" / "verify_project.py",               # 同侧安装的 arch-verify
-    ]
-    verify_src = next((c for c in candidates if c.exists()), None)
+    # 来源是本 skill 自带的同源副本 scripts/verify_project.py（与 arch-verify 的
+    # 权威版本字节一致，由 tools/validate_skill.py 强制校验）——运行时不再探测
+    # 同侧安装的 arch-verify skill（跨 skill 运行时依赖违反独立性约定）。
+    verify_src = Path(__file__).resolve().parent / "verify_project.py"
     verify_dst = root / "scripts" / "verify_project.py"
-    if verify_src and (args.force or not verify_dst.exists()):
+    if verify_src.exists() and (args.force or not verify_dst.exists()):
         verify_dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(verify_src, verify_dst)
         created += 1
-        print(f"生成: scripts/verify_project.py（vendoring 自 {verify_src}）")
-    elif not verify_src:
-        print("提示: 未找到 arch-verify 的 verify_project.py（未安装 arch-verify skill？）")
-        print("      请手动复制到 <项目>/scripts/verify_project.py 后再跑 verify/CI，")
-        print("      或跳过 vendoring 直接运行: python <arch-verify>/scripts/verify_project.py --project .")
+        print(f"生成: scripts/verify_project.py（vendoring 自 {verify_src.name}）")
+    elif not verify_src.exists():
+        print("提示: 本 skill 缺少 scripts/verify_project.py 副本（安装不完整？）")
+        print("      请从 arch-verify skill 的 scripts/verify_project.py 复制到")
+        print("      <项目>/scripts/verify_project.py 后再跑 verify/CI。")
 
     print(f"\n完成：{created} 个文件 → {root}")
     print("下一步：")
