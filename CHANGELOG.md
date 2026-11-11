@@ -42,6 +42,9 @@
   arch-verify 权威版本字节一致性强制校验。验证：篡改副本 → 校验 FAIL，
   还原 → PASS
 - 生成 README/SKILL 验证指引更新（项目内副本为首选路径）
+- 生成 CLI 避免遮蔽内建 list：apps/cli 的 `def list(...)` 改为 `def list_(...)`
+  并以 `@app.command("list")` 保持命令名不变。验证：重新生成后
+  `uv run <name>-cli add/list` 正常
 - install_impeccable.sh 移除写死的 `http.schannelCheckRevoke=false`（它会关闭
   Windows 证书吊销检查）；脚本/SKILL.md 保留"上游无 LICENSE"的显式说明
 - references/design/README.md 补体积说明：ui-ux-pro-max 约 3.4MB 的来源

@@ -607,8 +607,9 @@ def add(title: str, remote: bool = typer.Option(False, help="走远端 API")):
     console.print(f"[green]已创建[/green] {{task.id[:8]}} {{task.title}}")
 
 
-@app.command()
-def list(remote: bool = typer.Option(False)):
+@app.command("list")
+def list_(remote: bool = typer.Option(False)):
+    """列出任务。函数名加下划线避免遮蔽内建 list（命令名保持 list 不变）。"""
     table = Table("id", "title", "done")
     for t in list_tasks(make_repo(remote)).execute(USER):
         table.add_row(t.id[:8], t.title, "✓" if t.done else "")
