@@ -3,7 +3,7 @@
 > 回答两个问题：**脚手架最终产出什么？怎么判定它合格？**
 > 机器判定入口：`scripts/verify_project.py --project <项目目录> --test`
 
-## 1. 产出清单（模板 49 个文件；`--desktop electron` 为 51 个，机器可查）
+## 1. 产出清单（模板 54 个文件；`--desktop electron` 为 56 个，机器可查）
 
 > 另有 vendoring 的 `scripts/verify_project.py`（+1，复制自 monorepo-scaffold
 > 自带的同源副本，后者与 arch-verify 的 `scripts/verify_project.py` 字节一致、
@@ -22,9 +22,10 @@
 | | `.../bootstrap.py` | 组装入口（按环境注入适配器） |
 | | `packages/core/tests/test_task.py` | 核心单测（纯 Python，无框架） |
 | 后端 | `apps/server/src/server/main.py` / `routes/tasks.py` | FastAPI 路由（薄壳，只做协议转换） |
-| | `.../adapters/repo.py` / `orm.py` | SQLAlchemy 适配器实现 ports |
+| | `.../adapters/repo.py` / `orm.py` | SQLAlchemy 适配器实现 ports；**orm.py 是 schema 唯一事实来源** |
 | | `apps/server/Dockerfile` | 镜像构建 |
-| CLI | `apps/cli/src/cli/main.py` / `repo.py` | Typer 命令；local 模式用自带 stdlib sqlite3 适配器（零框架） |
+| | `apps/server/alembic.ini` / `migrations/env.py` / `migrations/script.py.mako` / `migrations/versions/0001_tasks.py` | Alembic 迁移骨架（env.py 按 `DATABASE_URL` 解析；0001 与 TaskRow 逐列对齐） |
+| CLI | `apps/cli/src/cli/main.py` / `repo.py` | Typer 命令；local 模式用自带 stdlib sqlite3 适配器（零框架；建表仅为 dev 自举镜像，只许 DML） |
 | 自检 | `scripts/verify_project.py` | 随产物分发的架构自检器（CI verify 步骤依赖；vendoring 自 monorepo-scaffold 的同源副本，与 arch-verify 权威版本字节一致） |
 | 设计 | `docs/design-decisions.md` | 设计决策记录（阶段 3.5 设计包流程必产物；verify 清单含此项） |
 | Web | `apps/web/src/App.vue` / `main.ts` / `styles/tokens.css` / `vite.config.ts` | Vue3 页面 + 设计 token（唯一颜色来源） |
@@ -56,6 +57,9 @@ web 端（App.vue / styles/*.css）引用的每个 `var(--x)` 必须在 `tokens.
 
 ### C6 语义决策只在一处（重写接入类项目重点）
 结果词汇枚举+分类谓词、硬承诺规则（如 dry_run 只报告不领取）、空集语义、目标校验——只写在 core（domain/application）；bridge/路由/端零映射表、零语义决策。适配器只做形状转换与能力申报。对照检查见 `references/migration.md` 的"薄壳反模式"表。
+
+### C7 schema 单一来源（DDL 白名单）
+`CREATE/ALTER/DROP TABLE` 只允许出现在 `apps/server/migrations/`（Alembic revision）；CLI 裸 SQL 适配器的 `CREATE TABLE IF NOT EXISTS` 仅限带"自举镜像"标记注释的 dev 自举（列定义必须与 server 适配器 orm 模型一致）。表结构定义点 = server 适配器 `orm.py` 的 SQLAlchemy metadata，结构变更走 Alembic（revision 只追加）。规约详见 database-design skill 的 `references/dialect-bridge.md`。由 verify 检查项"schema 单一来源"机器判定。
 
 ## 3. 运行时验收（生成的项目开箱即用的证据链）
 

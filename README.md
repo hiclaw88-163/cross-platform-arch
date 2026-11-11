@@ -15,6 +15,7 @@ Agent Skills 集合仓库：面向「一核多端」应用架构与工程规范�
 | [arch-verify](arch-verify/) | 机器门禁验收：verify_project.py 七项检查 + 产出规范 | 验收项目是否符合架构、诊断"样式不完整/token 未定义" |
 | [legacy-rewrite](legacy-rewrite/) | 存量项目重写接入：旧项目=协议字典+验收 oracle | 把旧系统功能用一核多端架构重新实现 |
 | [project-docs](project-docs/) | 项目文档体系标准 + docs 骨架脚手架 | 新建项目文档体系、整改散乱文档、写 AGENTS.md/规范索引/ADR |
+| [database-design](database-design/) | 表设计纪律 + SQLite↔PostgreSQL 双方言桥 | 建表/加字段/写 SQL、配置 Alembic、SQLite 演进到 PostgreSQL |
 
 ## 安装
 

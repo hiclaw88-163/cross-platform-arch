@@ -1,0 +1,29 @@
+{
+  "skill_name": "database-design",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "帮我在订单模块加一张退货单表，字段有退货编号、状态、金额、数量",
+      "expected_output": "按表设计纪律产出 SQLAlchemy 模型 + Alembic revision，命名/字段顺序/注释全部合规",
+      "expectations": [
+        "表名 snake_case 带业务域前缀（如 ord_refund），字段歧义的加业务前缀（refund_status 而非 status）",
+        "字段顺序符合强制表：id → 业务字段 → 状态类 → version → is_deleted → 审计组成组排列",
+        "金额字段用 Numeric(18,2) 禁 float；主键应用侧生成；排序列用 sort_order（如有）",
+        "每字段有中文 comment=，状态字段注释为枚举格式（分号分隔 值-名称）",
+        "结构变更产出 Alembic revision（只追加），不在业务代码里写 DDL"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "我们的桌面端项目用 SQLite 存数据，现在要部署成多人使用的 Web 服务，数据库怎么迁到 PostgreSQL？",
+      "expected_output": "按双方言桥流程迁移：模型零改动，换连接串 + alembic upgrade head + 数据搬运",
+      "expectations": [
+        "先给升级信号判定：多用户并发写满足 PostgreSQL 升级条件",
+        "说明因 schema 单一来源（SQLAlchemy metadata）+ 通用类型，模型层应零改动",
+        "迁移步骤：PG 建库 → 改 DATABASE_URL → alembic upgrade head → 数据搬运脚本只搬数据不搬结构",
+        "警告：如果迁移需要改模型或业务 SQL，说明此前违反了类型映射/方言隔离纪律，先修再迁",
+        "提醒 SQLite 差异点检查：DateTime(timezone=True) 的 TEXT 存储、无原生 bool"
+      ]
+    }
+  ]
+}

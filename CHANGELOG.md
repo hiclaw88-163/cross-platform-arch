@@ -1,5 +1,26 @@
 # Changelog
 
+## database-design 1.0.0 (2026-11-11)
+
+- **新增 skill**：表设计纪律 + SQLite↔PostgreSQL 双方言桥（提炼自实际项目数据库规范，去 MySQL 化：
+  tenant_id 降为多租户项目强制、雪花主键→应用侧生成、Flyway→Alembic、COMMENT 落模型 comment 参数）
+- 通用纪律：命名/索引前缀、字段顺序强制、审计字段成组、枚举注释格式、金额 Numeric、
+  禁 SELECT */无 WHERE、N+1/批量上限/深分页、保留字双方言自检、例外条款表
+
+## monorepo-scaffold 1.3.0 (2026-11-11)
+
+- 生成 Alembic 骨架：`apps/server/alembic.ini` + `migrations/{env.py,script.py.mako,versions/0001_tasks.py}`；
+  env.py 按 `DATABASE_URL` 解析（SQLite 相对路径统一到仓库根），0001 与 TaskRow 逐列对齐
+- server 依赖加 `alembic`；orm.py 模板标注 schema 单一事实来源与变更流程；CLI 自举建表加"自举镜像"标记
+- 同步 vendored verify_project.py 副本（与 arch-verify 字节一致）
+
+## arch-verify 1.2.0 (2026-11-11)
+
+- **新增第 8 项检查"schema 单一来源"**：`CREATE/ALTER/DROP TABLE` 只允许出现在
+  `apps/server/migrations/`；CLI 自举建表需带"自举镜像"标记且仅限 IF NOT EXISTS（--test 的核心测试顺延为第 9 项）
+- check_manifest 增加 4 个 Alembic 必需文件；产出清单文件数实测修正为 54（electron 56）
+- output-spec 新增 C7（schema 单一来源）
+
 ## monorepo-scaffold 1.2.1 (2026-11-11)
 
 - 提交信息主题上限由 30 字放宽到 100 字（按字符计数，钩子逻辑不变）：

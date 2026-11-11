@@ -4,7 +4,7 @@
 用法:
     python verify_project.py --project /path/to/my-app [--test]
 
-检查项（共 7 项，--test 时加跑第 8 项；全部通过输出 PASS，否则逐条列出 FAIL，
+检查项（共 8 项，--test 时加跑第 9 项；全部通过输出 PASS，否则逐条列出 FAIL，
 被跳过的项显式输出 SKIP——PASS 行只列真正执行过的检查。唯一例外: 显式传了
 --test 而核心测试因缺 uv 被跳过时判 FAIL——"测试没跑"绝不能被当成"测试通过"）:
   1. 结构完整性 —— 必需文件全部存在（含核心/各端/契约流水线/设计决策记录）
@@ -72,6 +72,11 @@ def check_manifest(root: Path, pkg: str) -> list[str]:
         "scripts/install_hooks.py",    # 钩子启用器（sync.py/setup_hooks.cjs 之外的纯 Python 入口）
         "scripts/setup_hooks.cjs",     # pnpm install 自动启用钩子的 Node 收尾脚本
         "docker-compose.yml", ".env.example",
+        # Alembic 迁移骨架（schema 单一来源门禁的物理载体）
+        "apps/server/alembic.ini",
+        "apps/server/migrations/env.py",
+        "apps/server/migrations/script.py.mako",
+        "apps/server/migrations/versions/0001_tasks.py",
     ]
     missing = [p for p in required if not (root / p).exists()]
     # 测试目录至少要有一个测试文件(具体文件名随业务命名,不硬编码)
@@ -519,6 +524,42 @@ def check_tests(root: Path) -> list[str]:
     return [] if r.returncode == 0 else [f"核心测试未通过: {tail[0]}"]
 
 
+def check_schema_source(root: Path) -> list[str]:
+    """检查: schema 单一来源——DDL 只允许出现在白名单位置。
+
+    规约来源: database-design skill 的 dialect-bridge.md §1。
+    表结构唯一事实来源是 server 侧 SQLAlchemy metadata(orm.py)；
+    Alembic migrations/ 是唯一允许的 DDL 执行点；CLI 裸 SQL 适配器
+    的 dev 自举建表必须带"自举镜像"标记注释且只许 IF NOT EXISTS。
+    """
+    ddl_re = re.compile(r"\b(CREATE\s+TABLE|ALTER\s+TABLE|DROP\s+TABLE)\b", re.IGNORECASE)
+    fails: list[str] = []
+    for base in ("apps", "scripts", "packages"):
+        base_dir = root / base
+        if not base_dir.is_dir():
+            continue
+        for f in base_dir.rglob("*"):
+            if f.suffix not in (".py", ".sql") or not f.is_file():
+                continue
+            rel = f.relative_to(root).as_posix()
+            if "migrations" in f.parts:  # Alembic 迁移脚本：唯一合法 DDL 位置
+                continue
+            text = f.read_text(encoding="utf-8", errors="ignore")
+            for m in ddl_re.finditer(text):
+                stmt = m.group(1).upper().replace("  ", " ")
+                line_no = text[: m.start()].count("\n") + 1
+                # CLI dev 自举镜像豁免：文件含"自举镜像"标记且语句为 CREATE TABLE IF NOT EXISTS
+                near = text[max(0, m.start() - 200):m.start()]
+                if "自举镜像" in near and "IF NOT EXISTS" in text[m.start():m.start() + 60]:
+                    continue
+                fails.append(
+                    f"schema 单一来源违规: {rel}:{line_no} 出现 {stmt}——"
+                    "DDL 只允许在 apps/server/migrations/(Alembic)；"
+                    "表结构定义走 server 适配器 orm 模型"
+                )
+    return fails
+
+
 def check_empty_packages(root: Path) -> list[str]:
     """检查: 源码树里不许留空目录(改名/重构残留的死包)。
 
@@ -586,6 +627,7 @@ def main() -> int:
          check_sdk_freshness(root) if has_uv else [],
          "未检测到 uv，契约新鲜度检查跳过（无法重算契约指纹）"),
         ("无空包残留", True, check_empty_packages(root), None),
+        ("schema 单一来源", True, check_schema_source(root), None),
     ]
     if args.test:
         results.append(("核心测试", has_uv,

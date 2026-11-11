@@ -37,12 +37,28 @@ members = ["packages/core", "apps/server", "apps/cli"]
 ### server 关键文件
 
 ```
-apps/server/src/server/
-├── main.py          # app 工厂：挂路由、CORS、/health、异常映射
-├── deps.py          # get_current_user、get_uow 等 FastAPI 依赖
-├── routes/tasks.py  # 路由 = 解析请求 → 调用用例 → 映射响应
-└── adapters/        # 出站适配器：SqliteTaskRepository（实现 core 的 Port）
+apps/server/
+├── alembic.ini              # Alembic 配置（url 留空，由 env.py 解析 DATABASE_URL）
+├── migrations/
+│   ├── env.py               # schema 事实来源 = server.adapters.orm.Base；SQLite 相对路径解析到仓库根
+│   ├── script.py.mako
+│   └── versions/0001_tasks.py   # 首版基线（与 TaskRow 逐列对齐）
+└── src/server/
+    ├── main.py          # app 工厂：挂路由、CORS、/health、异常映射
+    ├── deps.py          # get_current_user、get_uow 等 FastAPI 依赖
+    ├── routes/tasks.py  # 路由 = 解析请求 → 调用用例 → 映射响应
+    └── adapters/        # 出站适配器：SqliteTaskRepository（实现 core 的 Port）；orm.py 是 schema 唯一事实来源
 ```
+
+数据库迁移（Alembic）：
+
+```bash
+cd apps/server
+uv run alembic upgrade head        # 应用迁移（dev 首次也可由 server 的 create_all 自举 + alembic stamp head）
+uv run alembic revision --autogenerate -m "描述"   # 改模型后生成迁移（必须人工审查再提交）
+```
+
+纪律：revision 只追加、已发布脚本禁改；SQLite 删列/改类型用 batch_alter_table（env.py 已开 render_as_batch）。表结构纪律见 database-design skill。
 
 路由示例（体现"只做协议转换"）：
 ```python

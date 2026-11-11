@@ -433,6 +433,7 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]",
     "sqlalchemy>=2",
+    "alembic>=1.13",
     "psycopg[binary]",
     "pydantic-settings",
     "{pkg}-core",
@@ -543,7 +544,12 @@ class SqlTaskRepository(TaskRepository):
         self.engine = create_engine(url, connect_args=connect_args)
 
     def init_db(self) -> None:
-        """建表放应用启动期（FastAPI lifespan 调用），模块导入期不连库。"""
+        """建表放应用启动期（FastAPI lifespan 调用），模块导入期不连库。
+
+        create_all 仅限 dev 环境首次自举建库；任何结构变更一律走 Alembic
+        （apps/server/migrations/，revision 只追加）。已有数据的库用
+        `alembic upgrade head`；create_all 后用 `alembic stamp head` 对齐基线。
+        """
         Base.metadata.create_all(self.engine)
 
     def save(self, task: Task) -> None:
@@ -569,12 +575,160 @@ class Base(DeclarativeBase):
 
 
 class TaskRow(Base):
+    """schema 单一事实来源：表结构只在这里定义一次，双方言共用。
+
+    变更流程：改本文件 → `alembic revision --autogenerate`（人工审查）→
+    `alembic upgrade head`。SQLite 需删列/改类型时用 batch_alter_table。
+    """
+
     __tablename__ = "tasks"
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    user_id: Mapped[str] = mapped_column(String, index=True)
-    title: Mapped[str] = mapped_column(String)
-    done: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    id: Mapped[str] = mapped_column(String, primary_key=True)  # 应用侧生成，禁依赖自增
+    user_id: Mapped[str] = mapped_column(String, index=True)   # 用户ID
+    title: Mapped[str] = mapped_column(String)                 # 标题
+    done: Mapped[bool] = mapped_column(Boolean, default=False)  # 是否完成：1-是;0-否;
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)  # 创建时间
+''',
+        "apps/server/alembic.ini": '''[alembic]
+script_location = migrations
+# url 留空：由 migrations/env.py 解析（DATABASE_URL 环境变量优先，SQLite 相对路径统一到仓库根）
+sqlalchemy.url =
+
+[loggers]
+keys = root,sqlalchemy,alembic
+
+[handlers]
+keys = console
+
+[formatters]
+keys = generic
+
+[logger_root]
+level = WARN
+handlers = console
+qualname =
+
+[logger_sqlalchemy]
+level = WARN
+handlers =
+qualname = sqlalchemy.engine
+
+[logger_alembic]
+level = INFO
+handlers =
+qualname = alembic
+
+[handler_console]
+class = StreamHandler
+args = (sys.stderr,)
+level = NOTSET
+formatter = generic
+
+[formatter_generic]
+format = %(levelname)-5.5s [%(name)s] %(message)s
+datefmt = %H:%M:%S
+''',
+        "apps/server/migrations/env.py": '''"""Alembic 环境：DATABASE_URL 环境变量优先，schema 事实来源是 server.adapters.orm.Base。"""
+import os
+import sys
+from pathlib import Path
+
+from alembic import context
+from sqlalchemy import create_engine, pool
+
+# 保证 workspace 未安装为 editable 时也能导入 server 包
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
+
+from server.adapters.orm import Base  # noqa: E402
+
+target_metadata = Base.metadata
+
+
+def _database_url() -> str:
+    url = os.environ.get("DATABASE_URL", "sqlite:///./dev.db")
+    # SQLite 相对路径统一解析到仓库根（apps/server 的上两级），与 server 运行目录一致
+    if url.startswith("sqlite:///") and not url.startswith("sqlite:////"):
+        path = url.replace("sqlite:///", "", 1)
+        if not os.path.isabs(path):
+            url = "sqlite:///" + str(Path(__file__).resolve().parents[3] / path)
+    return url
+
+
+def run_migrations_offline() -> None:
+    context.configure(url=_database_url(), target_metadata=target_metadata, literal_binds=True)
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+def run_migrations_online() -> None:
+    url = _database_url()
+    connectable = create_engine(url, poolclass=pool.NullPool)
+    with connectable.connect() as connection:
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            render_as_batch=url.startswith("sqlite"),  # SQLite 有限 ALTER → batch 重建表
+        )
+        with context.begin_transaction():
+            context.run_migrations()
+
+
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    run_migrations_online()
+''',
+        "apps/server/migrations/script.py.mako": '''"""${message}
+
+Revision ID: ${up_revision}
+Revises: ${down_revision | comma,n}
+"""
+from alembic import op
+import sqlalchemy as sa
+${imports if imports else ""}
+
+revision = ${repr(up_revision)}
+down_revision = ${repr(down_revision)}
+branch_labels = ${repr(branch_labels)}
+depends_on = ${repr(depends_on)}
+
+
+def upgrade() -> None:
+    ${upgrades if upgrades else "pass"}
+
+
+def downgrade() -> None:
+    ${downgrades if downgrades else "pass"}
+''',
+        "apps/server/migrations/versions/0001_tasks.py": '''"""tasks 表基线（与 server adapters/orm.py 的 TaskRow 逐列对齐）
+
+Revision ID: 0001
+"""
+from alembic import op
+import sqlalchemy as sa
+
+revision = "0001"
+down_revision = None
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    op.create_table(
+        "tasks",
+        sa.Column("id", sa.String(), nullable=False, comment="任务ID"),
+        sa.Column("user_id", sa.String(), nullable=False, comment="用户ID"),
+        sa.Column("title", sa.String(), nullable=False, comment="标题"),
+        sa.Column("done", sa.Boolean(), nullable=False,
+                  server_default=sa.false(), comment="是否完成：1-是;0-否;"),
+        sa.Column("created_at", sa.DateTime(), nullable=False, comment="创建时间"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("idx_tasks_user_id", "tasks", ["user_id"])
+
+
+def downgrade() -> None:
+    op.drop_index("idx_tasks_user_id", table_name="tasks")
+    op.drop_table("tasks")
 ''',
         "apps/server/src/server/routes/__init__.py": "",
         "apps/server/src/server/routes/tasks.py": '''from fastapi import APIRouter, Depends, HTTPException, Request
@@ -694,6 +848,8 @@ class SqliteTaskRepository(TaskRepository):
     def __init__(self, url: str = "sqlite:///./dev.db") -> None:
         path = url.replace("sqlite:///", "") if url.startswith("sqlite:///") else url
         self.conn = sqlite3.connect(path)
+        # 自举镜像：仅 dev 首次建表用，列定义必须与 server adapters/orm.py 的 TaskRow 一致；
+        # 结构变更走 Alembic（apps/server/migrations/），本文件只允许 DML，不得改表
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS tasks ("
             "id TEXT PRIMARY KEY, user_id TEXT, title TEXT, done INTEGER, created_at TEXT)"
