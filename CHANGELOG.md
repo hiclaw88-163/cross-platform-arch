@@ -58,7 +58,11 @@
   `from engine import bridge, store` → FAIL 指认 store
 - check_sdk_freshness：探针改为参数列表常量 OPENAPI_PROBE_CMD（与 generate.mjs
   逐字一致，消除 shell 引号差异）；stdout 统一 CRLF→LF 后求哈希；对占位指纹给
-  出独立提示（区别于真实契约漂移）
+  出独立提示（区别于真实契约漂移）；捕获 TimeoutExpired/FileNotFoundError 转
+  明确 FAIL，不再让整个验收器崩溃
+- 无 uv 优雅降级落地：shutil.which("uv") 缺失时契约新鲜度与核心测试输出 SKIP
+  （带原因），不再误报 FAIL（此前报"无法导出 openapi"，与 CHANGELOG 1.0.1 的
+  降级声明不符）。验证：受限 PATH 下 --test 输出三项 SKIP、其余 PASS
 - output-spec.md：产出清单 46/48→49/51（+vendoring 50/52），补契约产物行与
   「无 node 环境补指纹步骤」说明
 

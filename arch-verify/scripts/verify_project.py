@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import ast
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -395,8 +396,13 @@ def check_sdk_freshness(root: Path) -> list[str]:
         return []  # 缺产物由结构完整性检查负责
     import hashlib
     import subprocess
-    r = subprocess.run(OPENAPI_PROBE_CMD, cwd=root,
-                       capture_output=True, text=True, timeout=300)
+    try:
+        r = subprocess.run(OPENAPI_PROBE_CMD, cwd=root,
+                           capture_output=True, text=True, timeout=300)
+    except subprocess.TimeoutExpired:
+        return ["契约探针超时(300s)——无法重算契约指纹，请检查 server.main 导入性能"]
+    except FileNotFoundError:
+        return ["契约探针无法启动（uv 不在 PATH）——契约新鲜度不可验证"]
     if r.returncode != 0:
         tail = (r.stderr.strip().splitlines() or ["导出失败"])[-1]
         return [f"无法从 server.main 导出 openapi.json,契约新鲜度不可验证: {tail}"]
@@ -423,6 +429,8 @@ def check_tests(root: Path) -> list[str]:
         )
     except FileNotFoundError:
         return ["uv 不可用（未安装或不在 PATH）: 无法运行核心测试，请安装 uv 或去掉 --test"]
+    except subprocess.TimeoutExpired:
+        return ["核心测试超时(600s)——存在卡死的测试？"]
     tail = (r.stdout + r.stderr).strip().splitlines()[-1:] or [""]
     return [] if r.returncode == 0 else [f"核心测试未通过: {tail[0]}"]
 
@@ -478,25 +486,29 @@ def main() -> int:
     pkgs = [d.name for d in src.iterdir() if d.is_dir() and d.name.endswith("_core")] if src.is_dir() else []
     pkg = pkgs[0].removesuffix("_core") if pkgs else "app"
 
-    # 每项检查带"是否真正执行"标记：PASS 行只列真正执行过的检查项，
-    # 被跳过的项显式输出 SKIP——绝不谎报(如无 engine 项目谎报"六边形桥闭合")
-    results: list[tuple[str, bool, list[str]]] = [
-        ("结构完整", True, check_manifest(root, pkg)),
-        ("核心纯净", True, check_core_purity(root, pkg)),
-        ("依赖方向", True, check_dep_direction(root)),
-    ]
+    # 每项检查带"是否真正执行"标记与跳过说明：PASS 行只列真正执行过的检查项，
+    # 被跳过的项显式输出 SKIP——绝不谎报(如无 engine 项目谎报"六边形桥闭合")，
+    # 也不把"环境缺 uv"当成架构违规 FAIL
+    has_uv = shutil.which("uv") is not None
     hexa_done, hexa_fails = check_hexagonal(root)
-    results.append(("六边形桥", hexa_done, hexa_fails))
-    results += [
-        ("Token 闭合", True, check_token_closure(root)),
-        ("契约新鲜度", True, check_sdk_freshness(root)),
-        ("无空包残留", True, check_empty_packages(root)),
+    results: list[tuple[str, bool, list[str], str | None]] = [
+        ("结构完整", True, check_manifest(root, pkg), None),
+        ("核心纯净", True, check_core_purity(root, pkg), None),
+        ("依赖方向", True, check_dep_direction(root), None),
+        ("六边形桥", hexa_done, hexa_fails, "未发现 packages/engine，六边形桥检查未执行"),
+        ("Token 闭合", True, check_token_closure(root), None),
+        ("契约新鲜度", has_uv,
+         check_sdk_freshness(root) if has_uv else [],
+         "未检测到 uv，契约新鲜度检查跳过（无法重算契约指纹）"),
+        ("无空包残留", True, check_empty_packages(root), None),
     ]
     if args.test:
-        results.append(("核心测试", True, check_tests(root)))
+        results.append(("核心测试", has_uv,
+                        check_tests(root) if has_uv else [],
+                        "未检测到 uv，核心测试跳过"))
 
-    fails = [m for _, done, ms in results if done for m in ms]
-    skipped = [name for name, done, _ in results if not done]
+    fails = [m for _, done, ms, _ in results if done for m in ms]
+    skipped = [(name, note) for name, done, _, note in results if not done]
 
     print(f"项目: {root}")
     print(f"包名: {pkg}_core")
@@ -504,13 +516,13 @@ def main() -> int:
         print(f"\nFAIL — {len(fails)} 项违规:")
         for f in fails:
             print(f"  ✗ {f}")
-        if skipped:
-            print(f"SKIP: {'、'.join(skipped)} 检查未执行")
+        for _, note in skipped:
+            print(f"SKIP: {note}")
         return 1
-    executed = "、".join(name for name, done, _ in results if done)
+    executed = "、".join(name for name, done, _, _ in results if done)
     print(f"\nPASS — 已执行检查: {executed}")
-    for name in skipped:
-        print(f"SKIP: 未发现 packages/engine，{name}检查未执行")
+    for _, note in skipped:
+        print(f"SKIP: {note}")
     return 0
 
 
