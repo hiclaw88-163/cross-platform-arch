@@ -116,14 +116,14 @@ SQLite 台账         | 技术能力        | engine 适配器
 | 端零结果映射 | 人工 grep（暂无自动检查,评审时必查） |
 | core 不是薄壳 | 人工评审：用例层必须有≥1 条"没有它端就会做错"的规则 |
 
-## 改名/重构后的清场规程（2026-11-07 事故）
+## 改名/重构后的清场规程（真实事故复盘）
 
-**事故**：把 `owk_engine/store` 改名 `ledger`、`apps/` 改名 `extensions/`、
-`kit/`→`signin/`、`scheduledomain/`→`scheduling/` 时，只搬了文件没删旧目录。
-Python 3 把**没有 `__init__.py` 的空目录**当成命名空间包，于是：
+**事故**：把 `<engine>/store` 改名 `ledger`、`apps/` 改名 `extensions/` 等
+多目录改名时，只搬了文件没删旧目录。Python 3 把**没有 `__init__.py` 的空目录**
+当成命名空间包，于是：
 
 ```python
-from owk_engine import store   # 不报错！
+from <engine> import store     # 不报错！
 store.record_payload(...)      # AttributeError —— 被 best-effort 的 except 吞掉
 ```
 

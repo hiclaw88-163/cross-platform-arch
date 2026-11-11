@@ -4,15 +4,21 @@
 用法:
     python verify_project.py --project /path/to/my-app [--test]
 
-检查项（全部通过输出 PASS，否则逐条列出 FAIL）:
+检查项（共 7 项，--test 时加跑第 8 项；全部通过输出 PASS，否则逐条列出 FAIL，
+被跳过的项显式输出 SKIP——PASS 行只列真正执行过的检查）:
   1. 结构完整性 —— 必需文件全部存在（含核心/各端/契约流水线/设计决策记录）
-  2. 核心纯净性 —— packages/core 源码禁止 import 任何框架
-     (fastapi/sqlalchemy/typer/uvicorn/httpx/requests/pydantic/flask/django/starlette/rich/click/aiohttp)
-     这是"一核多端"的铁律: 核心只依赖标准库
-  3. 依赖方向性 —— 各端依赖核心(core)，核心不得反向依赖任何端
-  4. Token 引用闭合 —— web 端引用的 var(--x) 必须在 tokens.css(或本文件)定义,
-     防止"样式残缺但不报错"的隐性破损(真实事故: tokens.css 缺 --space-5 等)
-  5. 测试通过性 —— (--test) 运行 uv run pytest packages/core/tests
+  2. 核心纯净性 —— packages/core 只允许 标准库 + 本包自身（白名单制，
+     含 importlib.import_module/__import__ 动态导入检测）
+  3. 依赖方向性 —— core 源码不得 import 任何端（ast 扫描 import）
+  4. 六边形桥 —— 各端只许经 <engine>.bridge 触达引擎；无 packages/engine 的
+     项目显式 SKIP
+  5. Token 引用闭合 —— web 端引用的 var(--x) 必须有定义（.css/.scss/.vue/
+     .html/.ts/.tsx），带兜底值的引用仅 WARN
+  6. 契约新鲜度 —— openapi.sha256 指纹重算比对，server 契约变更未重生成 SDK
+     即 FAIL（无 uv 时 SKIP）
+  7. 无空包残留 —— 改名/重构残留的空目录会被 Python 当命名空间包，
+     让导入假成功（真实事故: 空目录吞掉台账写入）
+  8. 核心测试通过 —— (--test) 运行 uv run pytest packages/core/tests
 """
 from __future__ import annotations
 
@@ -462,11 +468,11 @@ def check_tests(root: Path) -> list[str]:
 def check_empty_packages(root: Path) -> list[str]:
     """检查: 源码树里不许留空目录(改名/重构残留的死包)。
 
-    2026-11-07 真实事故(open-work-kit): 重构把 ``owk_engine/store`` 改名
-    ``ledger``,旧目录被清空但目录还在。Python 3 会把它当成**命名空间包**,
-    于是 ``from owk_engine import store`` 不报错、里面却什么都没有 ——
-    ``AttributeError`` 落到 best-effort 的 ``except`` 里被吞,整天的台账
-    静默丢失,dashboard 一片空白而 CLI 输出一切正常。
+    真实事故复盘: 重构把 ``<engine>/store`` 改名 ``ledger``,旧目录被清空
+    但目录还在。Python 3 会把它当成**命名空间包**,于是 ``from <engine>
+    import store`` 不报错、里面却什么都没有 —— ``AttributeError`` 落到
+    best-effort 的 ``except`` 里被吞,整天的台账静默丢失,dashboard 一片
+    空白而 CLI 输出一切正常。
 
     "空目录让导入假成功"会把断链伪装成健康,必须在自检里拦下。
     """

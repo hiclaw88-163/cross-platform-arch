@@ -51,7 +51,7 @@
 - 后台任务：FastAPI BackgroundTasks 起步 → ARQ（轻量 Redis 队列）→ Celery（重）。
 - 部署：Docker Compose 起步；上量后 server 前置 Nginx/Caddy，静态前端与 API 同域部署可免 CORS。
 
-## 主要资料来源（检索于 2026-11-06）
+## 主要资料来源
 
 1. DeepWiki: ship-python-orchestrate-ai —— FastAPI+React API-first 多端分发（Web/PWA/Electron/桌面）
 2. dev.to: FastAPI + React + Expo 三仓库模板 —— OpenAPI 生成 TS SDK 的契约流水线实践

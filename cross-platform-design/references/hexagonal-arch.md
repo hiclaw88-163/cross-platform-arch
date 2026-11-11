@@ -91,7 +91,7 @@ core 用例纯 pytest（毫秒级、零 mock IO）；engine 适配器用 sqlite 
 ## 3. 快速自检
 
 ```bash
-python scripts/verify_project.py --project . --test   # 五道门禁
-uv run open-work-kit-cli list                          # 冒烟：用例装配成功
-pnpm gen:sdk && pnpm build:web                         # 契约新鲜度
+python scripts/verify_project.py --project . --test   # 七项门禁（--test 含测试）
+uv run <server-cli> list                              # 冒烟：用例装配成功（按项目实际 CLI 名替换）
+pnpm gen:sdk && pnpm build:web                        # 契约新鲜度
 ```

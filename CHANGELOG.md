@@ -1,5 +1,30 @@
 # Changelog
 
+## cross-platform-design 1.0.1 (2026-11-11)
+
+- references/hexagonal-arch.md 快速自检：具名 CLI `open-work-kit-cli` 改为
+  `<server-cli>` 占位（违反"项目特定值一律占位符"约定）；"五道门禁"改为
+  "七项门禁（--test 含测试）"与 verify 实现一致
+- references/tech-stack.md 去除时间性表述（README 约定：skill 正文无时间性表述）
+
+## cross-platform-design 1.0.0 (2026-11-06)
+
+- 初始版本：一核多端架构设计 skill（分层模型/端选型/六边形规约/契约流水线；
+  SKILL.md + references + evals）——补记：此前 CHANGELOG 漏登初始条目
+
+## legacy-rewrite 1.0.3 (2026-11-11)
+
+- references/migration.md 清场规程：具名 `owk_engine` 改为 `<engine>` 占位；
+  标题去除具体日期（时间性表述约定）
+
+## arch-verify 1.1.1 (2026-11-11)
+
+- 文件头检查清单与实现统一为 7 项 + --test 第 8 项（此前只列 5 项），并写明
+  SKIP 语义
+- check_empty_packages 文档字符串去具名项目（open-work-kit/owk_engine →
+  `<engine>` 占位）、去具体日期
+- output-spec.md 去时间性表述（"已实测记录（demo-app）"）
+
 ## repo 2.0.3 (2026-11-11)
 
 - 修复「脚手架产物过不了自家门禁」：scaffold 补齐 `docs/design-decisions.md` 与

@@ -3,8 +3,7 @@ name: arch-verify
 description: 一核多端项目的机器门禁验收：verify_project.py 七项检查 + 产出规范与质量门禁清单。TRIGGER when 验收或检查项目是否符合一核多端架构要求、把架构约束交给机器判定、诊断"页面样式不完整/间距颜色没生效"这类 token 未定义问题；DO NOT TRIGGER when 从零生成新项目（用 monorepo-scaffold）、修改架构规范本身（用 cross-platform-design）。
 license: MIT
 metadata:
-  version: "1.1.0"
-  author: WorkBuddy Agent
+  version: "1.1.1"
 ---
 
 # 一核多端项目机器门禁验收

@@ -81,7 +81,7 @@ curl -X POST localhost:8000/api/v1/tasks -H "Content-Type: application/json" -d 
 uv run my-app-cli add "hello" && uv run my-app-cli list
 ```
 
-> 已实测记录（2026-11-06，demo-app）：三项全过，CLI 与 server 通过同一份 SQLite 看到彼此的数据。
+> 已实测记录（demo-app）：三项全过，CLI 与 server 通过同一份 SQLite 看到彼此的数据。
 
 ## 4. 演进期约束（防止项目长歪）
 

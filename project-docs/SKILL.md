@@ -4,7 +4,6 @@ description: 项目文档体系（docs 仓库）标准结构与脚手架。TRIGG
 license: MIT
 metadata:
   version: "1.2.1"
-  author: WorkBuddy Agent
 ---
 
 # 项目文档体系（project-docs）
