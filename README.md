@@ -51,7 +51,7 @@ metadata:
 
 ## 格式约定（本仓库）
 
-- **提交信息（强制）**：`<type>:[<需求单号>]: <中文主题>`——单行、动词开头、≤30 字、不加句号；type 取 feat/fix/refactor/docs/chore/build/test；无关联需求的单号占位 `[0]`，可叠加 scope（`fix(bridge):[OMS--777]: 修复推送丢失`）；一次提交一个意图。`.githooks/commit-msg` 会强制校验（本仓库已启用：`git config core.hooksPath .githooks`），merge/revert 系统提交放行
+- **提交信息（强制）**：`<type>:[<需求单号>]: <中文主题>`——单行、动词开头、≤100 字、不加句号；type 取 feat/fix/refactor/docs/chore/build/test；无关联需求的单号占位 `[0]`，可叠加 scope（`fix(bridge):[OMS--777]: 修复推送丢失`）；一次提交一个意图。`.githooks/commit-msg` 会强制校验（本仓库已启用：`git config core.hooksPath .githooks`），merge/revert 系统提交放行
 - 完整课纲（面向生成项目）见 monorepo-scaffold README 模板与 project-docs `08-提交信息规范` 模板
 
 ## 校验

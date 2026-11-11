@@ -1,5 +1,17 @@
 # Changelog
 
+## monorepo-scaffold 1.2.1 (2026-11-11)
+
+- 提交信息主题上限由 30 字放宽到 100 字（按字符计数，钩子逻辑不变）：
+  `.githooks/commit-msg` 与 scaffold 内嵌钩子模板同步修改（注释/报错文案/
+  `-gt` 阈值/README 模板两处），project-docs `提交信息规范` 模板与根 README
+  同步改文案。验证：31 字主题此前被拒、现放行；101 字仍拒
+
+## project-docs 1.2.3 (2026-11-11)
+
+- `templates/conventions/提交信息规范.md` 主题上限文案 30→100 字，与
+  commit-msg 钩子新阈值对齐
+
 ## cross-platform-design 1.0.2 (2026-11-11)
 
 - v2.0.4 复核补第二条 eval（对齐其他 skill 各 2 条的覆盖）：契约流水线触发
