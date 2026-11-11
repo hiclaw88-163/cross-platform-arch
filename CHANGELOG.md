@@ -1,5 +1,17 @@
 # Changelog
 
+## arch-verify 1.1.5 (2026-11-11)
+
+- 封堵六边形桥动态导入漏报：`importlib.import_module("...")` / `__import__("...")`
+  的字符串字面量此前不经 ast import 节点扫描，端可用一行字符串绕过整道桥门禁
+  （check_core_purity 已有同类检测，check_hexagonal 缺失不对称）。检测对齐静态
+  规约：engine 下**精确豁免 `<engine>.bridge` 本身**（对应静态规范形式
+  `import <engine>.bridge`），其余 engine 路径（含裸 `<engine>`、子模块、桥下
+  更深层）判违规；跨端动态导入同样受端间隔离约束。回归 26 场景：静态 19 场景
+  行为不变（无新误报），动态导入 7 场景（engine/store/bridge 子模块/跨端拦、
+  bridge 本身/标准库/端内自引放）全部正确；同步 monorepo-scaffold 同源副本
+  （字节一致）
+
 ## repo 2.0.4 (2026-11-11)
 
 - tools/validate_skill.py 版本校验修正三种边界场景（原 regex 把 version 限定为

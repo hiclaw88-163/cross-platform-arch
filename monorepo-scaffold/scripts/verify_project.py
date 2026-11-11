@@ -11,8 +11,8 @@
   2. 核心纯净性 —— packages/core 只允许 标准库 + 本包自身（白名单制，
      含 importlib.import_module/__import__ 动态导入检测）
   3. 依赖方向性 —— core 源码不得 import 任何端（ast 扫描 import）
-  4. 六边形桥 —— 各端只许经 <engine>.bridge 触达引擎；无 packages/engine 的
-     项目显式 SKIP
+  4. 六边形桥 —— 各端只许经 <engine>.bridge 触达引擎（含 importlib.import_module/
+     __import__ 动态导入的字符串字面量检测）；无 packages/engine 的项目显式 SKIP
   5. Token 引用闭合 —— web 端引用的 var(--x) 必须有定义（.css/.scss/.vue/
      .html/.ts/.tsx），带兜底值的引用仅 WARN
   6. 契约新鲜度 —— openapi.sha256 指纹重算比对，server 契约变更未重生成 SDK
@@ -293,7 +293,10 @@ def check_hexagonal(root: Path) -> tuple[bool, list[str]]:
        `import <engine>.bridge`; **违规**: `import <engine>`、`from <engine>
        import <非bridge名字>`、`from <engine> import bridge, <其他>`、
        `from <engine>.<非bridge子包> import ...`(含 `bridge.<更深子模块>`);
-    3. 端之间禁止互相 import(白名单除外)。
+       动态导入 `importlib.import_module("...")` / `__import__("...")` 的字符串
+       字面量同规约约束——唯一豁免是精确的 `<engine>.bridge` 本身（对应静态
+       规范形式 `import <engine>.bridge`）;
+    3. 端之间禁止互相 import(白名单除外，含动态导入)。
 
     返回 (是否执行, 违规列表)。项目没有 packages/engine(如 monorepo-scaffold
     生成的 core-only 拓扑)时检查**显式 SKIP**——绝不谎报"桥闭合"。
@@ -365,6 +368,33 @@ def check_hexagonal(root: Path) -> tuple[bool, list[str]]:
                         fails.append(
                             f"{f.relative_to(root)}:{node.lineno} import 了端 {parts[0]}"
                             "——端之间禁止互相引用(见 clients.md §2 关系矩阵)")
+            # 动态导入漏报封堵（与 check_core_purity 对齐）：importlib.import_module /
+            # __import__ 的字符串字面量同样受 R4 与端间隔离约束——否则端可以
+            # 用一行字符串绕过整道桥门禁。注意 import_module("engine.bridge")
+            # 对应静态规范形式 import engine.bridge，精确豁免
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                fn = node.func
+                dynamic = (
+                    (isinstance(fn, ast.Attribute) and fn.attr == "import_module"
+                     and isinstance(fn.value, ast.Name) and fn.value.id == "importlib")
+                    or (isinstance(fn, ast.Name) and fn.id == "__import__")
+                )
+                if not (dynamic and node.args and isinstance(node.args[0], ast.Constant)
+                        and isinstance(node.args[0].value, str)):
+                    continue
+                mod = node.args[0].value
+                top = mod.split(".")[0]
+                if top == engpkg and mod != f"{engpkg}.bridge":
+                    fails.append(
+                        f"{f.relative_to(root)}:{node.lineno} 动态 import '{mod}'"
+                        f"——端只允许经 {engpkg}.bridge 触达引擎(规约 R4)")
+                elif top in end_names and top != end and \
+                        top not in _END_IMPORT_WHITELIST.get(end, ()):
+                    fails.append(
+                        f"{f.relative_to(root)}:{node.lineno} 动态 import 了端 '{top}'"
+                        "——端之间禁止互相引用(见 clients.md §2 关系矩阵)")
     return True, fails
 
 
