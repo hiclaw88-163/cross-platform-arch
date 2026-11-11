@@ -382,13 +382,25 @@ def _strip_var_calls(text: str) -> str:
     return text
 
 
+def _strip_comments(text: str) -> str:
+    """剥掉注释，防止注释掉的旧样式行里的 var 引用被误判为真实引用
+    （回归实证: CSS 块注释/TS 行注释/HTML 注释里的 var(--dead) 均被误 FAIL）。
+    CSS/JS 块注释 ``/* */``、HTML 注释 ``<!-- -->``、行首 ``//`` 整行注释
+    （最常见形态；行尾 // 与字符串内的 // 如 https:// 不受影响）。"""
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
+    text = re.sub(r"^\s*//.*$", "", text, flags=re.M)
+    return text
+
+
 def check_token_closure(root: Path) -> tuple[list[str], list[str]]:
     """web 端引用的每个 var(--x) 必须有定义(tokens.css 或引用所在文件)。
 
     背景: 该类破损不报错、不崩构建——页面只是"安静地变丑/残缺",
     人工 review 极易漏检,必须机器判定。
     返回 (违规, 警告): 定义可出现在任意位置(不要求行首)；带兜底值的引用
-    `var(--x, #fff)` 即使未定义也只是 WARN（兜底保证可用）。
+    `var(--x, #fff)` 即使未定义也只是 WARN（兜底保证可用）；注释里的引用
+    与定义一律忽略（注释掉的代码不是有效代码）。
     """
     web_src = root / "apps/web/src"
     if not web_src.is_dir():
@@ -396,14 +408,15 @@ def check_token_closure(root: Path) -> tuple[list[str], list[str]]:
     tokens = web_src / "styles/tokens.css"
     defined: set[str] = set()
     if tokens.exists():
-        defined |= set(_VAR_DEF.findall(_strip_var_calls(tokens.read_text(encoding="utf-8"))))
+        defined |= set(_VAR_DEF.findall(_strip_var_calls(
+            _strip_comments(tokens.read_text(encoding="utf-8")))))
     fails: list[str] = []
     warns: list[str] = []
     files: list[Path] = []
     for ext in _TOKEN_SCAN_EXTS:
         files += [f for f in web_src.rglob(ext) if f.is_file()]
     for f in files:
-        text = f.read_text(encoding="utf-8", errors="ignore")
+        text = _strip_comments(f.read_text(encoding="utf-8", errors="ignore"))
         local_defs = set(_VAR_DEF.findall(_strip_var_calls(text)))
         refs = set(_VAR_REF.findall(text))
         fallback_refs = set(_VAR_REF_FALLBACK.findall(text))
