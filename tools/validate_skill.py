@@ -56,7 +56,8 @@ def metadata_version(content: str) -> tuple[bool, str | None]:
 
     定位 `metadata:` 行，收集其后所有缩进更深的行作为该块（遇到缩进回到
     顶层的非空行即结束），在块内找 `version:` 子键——version 不必是第一个
-    子键；值两端的单、双引号都剥除。返回 (块内是否存在 version, 版本值)。
+    子键；值两端的单、双引号都剥除；行尾 `# 注释` 剥除（YAML 中空白后的
+    # 起注释，值内不带前导空白的 # 不受影响）。返回 (块内是否存在 version, 版本值)。
     """
     in_block = False
     for line in content.split("\n---", 1)[0].splitlines():
@@ -68,7 +69,7 @@ def metadata_version(content: str) -> tuple[bool, str | None]:
             break  # 缩进回到顶层，metadata 块结束
         m = re.match(r"^[ \t]+version:\s*(.+?)\s*$", line)
         if m:
-            val = m.group(1).strip()
+            val = re.split(r"\s+#", m.group(1).strip(), maxsplit=1)[0].strip()
             if len(val) >= 2 and val[0] == val[-1] and val[0] in "\"'":
                 val = val[1:-1]
             return True, val

@@ -1,5 +1,13 @@
 # Changelog
 
+## repo 2.0.5 (2026-11-11)
+
+- tools/validate_skill.py 版本校验容忍行尾注释：`version: "1.2.0"  # note` 此前
+  被整段当值误报 FAIL（合法 YAML 允许空白后 # 起注释）。剥除 `\s+#` 之后的
+  注释再剥引号比对；值内不带前导空白的 #（如 URL 片段）不受影响。验证（临时
+  仓库副本）：行尾注释版本正确 → PASS；`version: "9.9.9"  # note` → FAIL 且
+  报 9.9.9；基线 5 skill 全 PASS
+
 ## monorepo-scaffold 1.2.0 (2026-11-11)
 
 - v2.0.4 复核两个健壮性小修：Electron 离线模式 spawn sidecar 前先
