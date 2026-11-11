@@ -196,7 +196,10 @@ try {
     environment:
       - DATABASE_URL=postgresql+psycopg://app:app@db:5432/app
       - JWT_SECRET=${JWT_SECRET:?set_jwt_secret}
-    depends_on: [db]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure
   db:
     image: postgres:16-alpine
     environment:
@@ -204,6 +207,11 @@ try {
       - POSTGRES_PASSWORD=app
       - POSTGRES_DB=app
     volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
 volumes:
   pgdata:
 ''',
@@ -460,14 +468,26 @@ USER appuser
 CMD ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ''',
         "apps/server/src/server/__init__.py": "",
-        "apps/server/src/server/main.py": '''from fastapi import FastAPI
+        "apps/server/src/server/main.py": '''from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from server.adapters.repo import SqlTaskRepository
 from server.routes.tasks import router as tasks_router
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="{name}", version="0.1.0")
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        # 仓储与建表放启动期而非导入期：import server.main 不再连数据库
+        # （db 未就绪时导入不会崩，第一次请求才需要真实连接）
+        repo = SqlTaskRepository()
+        repo.init_db()
+        app.state.repo = repo
+        yield
+
+    app = FastAPI(title="{name}", version="0.1.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
     )
@@ -500,7 +520,11 @@ class SqlTaskRepository(TaskRepository):
     def __init__(self, url: str | None = None) -> None:
         url = url or os.environ.get("DATABASE_URL", "sqlite:///./dev.db")
         connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
+        # create_engine 是惰性的：这里不连数据库，真正连接发生在首次执行 SQL
         self.engine = create_engine(url, connect_args=connect_args)
+
+    def init_db(self) -> None:
+        """建表放应用启动期（FastAPI lifespan 调用），模块导入期不连库。"""
         Base.metadata.create_all(self.engine)
 
     def save(self, task: Task) -> None:
@@ -534,19 +558,21 @@ class TaskRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 ''',
         "apps/server/src/server/routes/__init__.py": "",
-        "apps/server/src/server/routes/tasks.py": '''from fastapi import APIRouter, Depends, HTTPException
+        "apps/server/src/server/routes/tasks.py": '''from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
+from {pkg}_core.application.ports import TaskRepository
 from {pkg}_core.bootstrap import create_task, list_tasks
 from {pkg}_core.domain.task import TitleTooShort
 
-from server.adapters.repo import SqlTaskRepository
-
 router = APIRouter(tags=["tasks"])
 
-_repo = SqlTaskRepository()  # 默认读 DATABASE_URL 环境变量；生产环境可改从 deps 注入
-
 DEMO_USER = "u1"  # 鉴权落地后替换为 Depends(get_current_user)
+
+
+def get_repo(request: Request) -> TaskRepository:
+    """取启动期创建的仓储（main.py lifespan 初始化，导入期不连数据库）。"""
+    return request.app.state.repo
 
 
 class TaskIn(BaseModel):
@@ -560,18 +586,18 @@ class TaskOut(BaseModel):
 
 
 @router.post("/tasks", response_model=TaskOut)
-def create_task_ep(body: TaskIn):
+def create_task_ep(body: TaskIn, repo: TaskRepository = Depends(get_repo)):
     try:
-        task = create_task(_repo).execute(DEMO_USER, body.title)
+        task = create_task(repo).execute(DEMO_USER, body.title)
     except TitleTooShort as e:
         raise HTTPException(422, str(e))
     return TaskOut(id=task.id, title=task.title, done=task.done)
 
 
 @router.get("/tasks", response_model=list[TaskOut])
-def list_tasks_ep():
+def list_tasks_ep(repo: TaskRepository = Depends(get_repo)):
     return [TaskOut(id=t.id, title=t.title, done=t.done)
-            for t in list_tasks(_repo).execute(DEMO_USER)]
+            for t in list_tasks(repo).execute(DEMO_USER)]
 ''',
     }, pkg, name)
 

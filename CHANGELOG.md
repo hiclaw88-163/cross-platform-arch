@@ -1,5 +1,17 @@
 # Changelog
 
+## monorepo-scaffold 1.1.4 (2026-11-11)
+
+- 修复 db 未就绪时 server 在导入阶段崩溃（实测：DATABASE_URL 指向不可达 Postgres，
+  `import server.main` 抛 OperationalError）：仓储实例化与建表从模块导入期挪到
+  应用启动期（FastAPI lifespan 里 init_db + 存 app.state，路由经 Depends 注入，
+  不再导入 adapters；create_engine 本身惰性）。选择方案：**导入不连库，第一次
+  真正请求数据时才报错**。docker-compose.yml 补 db healthcheck（pg_isready）、
+  server `depends_on: condition: service_healthy` 与 `restart: on-failure`
+  （compose 竞态为推断项，无 Docker 环境未实测）。验证：不可达 DB 下
+  `import server.main` OK、pytest 通过、SQLite 基线全链路可用（创建/422 中文
+  提示/列表）、verify --test PASS（契约探针导入不再需要数据库）
+
 ## monorepo-scaffold 1.1.3 (2026-11-11)
 
 - 修复生成项目 `apps/server/Dockerfile` 构建必失败：原 COPY 只含根 pyproject 与
