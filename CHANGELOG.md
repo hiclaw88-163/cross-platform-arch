@@ -1,5 +1,29 @@
 # Changelog
 
+## monorepo-scaffold 1.1.5 (2026-11-11)
+
+- 桌面外壳健壮性四项（无桌面环境，静态检查 + 最小脚本模拟验证）：
+  - Electron 离线模式 sidecar 产物名按平台选择（`process.platform === "win32" ?
+    "server-sidecar.exe" : "server-sidecar"`），sidecar_entry.py 打包注释与
+    apps/desktop/README.md 同步注明各平台产物名（原写死 .exe，macOS/Linux 不可用）
+  - Electron spawn 失败补 `sidecar.on("error")`：error 是异步事件、外层
+    try/catch 抓不到，现转为 sidecarError 变量在等待循环抛出，保证走到
+    `dialog.showErrorBox("启动失败")`；sidecar 中途退出且窗口仍开时
+    `on("exit")` 明确提示并退出（before-quit 置 quitting 标志避免误报）。
+    验证：node --check 通过；最小脚本 spawn 不存在路径 → error 事件异步触发
+    → 错误信息送达对话框路径
+  - 打包后数据库不可写：Electron 离线启动 sidecar 时经环境变量传
+    `DATABASE_URL=sqlite:///<userData>/app.db`（路径转正斜杠）；pywebview
+    外壳离线模式用标准库方案（Windows APPDATA / macOS Library/Application
+    Support / Linux XDG_DATA_HOME 回退 ~/.local/share）setdefault 数据库
+    URL，开发模式默认值不变。验证：生成代码跑 `_default_db_url()` 得
+    `sqlite:///C:/Users/…/AppData/Roaming/my-app/app.db` 且 create_engine
+    connect 成功
+  - pywebview 内嵌 server 等待循环加 15 秒超时（原 `while not server.servers`
+    无超时会永久挂起），与 sidecar_entry.py 口径一致；线程存活检查兜底，
+    超时/线程退出打印明确错误并 sys.exit(1)。验证：最小脚本复刻等待循环，
+    线程启动失败 → 主线程报错 exit 1（不挂起）
+
 ## monorepo-scaffold 1.1.4 (2026-11-11)
 
 - 修复 db 未就绪时 server 在导入阶段崩溃（实测：DATABASE_URL 指向不可达 Postgres，

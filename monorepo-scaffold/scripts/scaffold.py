@@ -883,6 +883,8 @@ const path = require("node:path");
 
 let win = null;
 let sidecar = null;
+let sidecarError = null;
+let quitting = false;
 
 async function waitForHealth(port, timeoutMs = 15000) {
   const started = Date.now();
@@ -907,16 +909,41 @@ async function waitForHealth(port, timeoutMs = 15000) {
 async function resolveBaseUrl() {
   if (process.env.WEB_URL) return process.env.WEB_URL; // 在线/开发模式
   // 离线模式：启动 PyInstaller 打包的 sidecar，监听 stdout 里的 SIDECAR_PORT
+  // 产物名按平台不同：Windows 为 server-sidecar.exe，macOS/Linux 无后缀
   const exe =
     process.env.SIDECAR_EXE ||
-    path.join(process.resourcesPath, "sidecar", "server-sidecar.exe");
-  sidecar = spawn(exe, [], { windowsHide: true });
+    path.join(process.resourcesPath, "sidecar",
+      process.platform === "win32" ? "server-sidecar.exe" : "server-sidecar");
+  sidecar = spawn(exe, [], {
+    windowsHide: true,
+    // 打包后安装目录常只读，SQLite 放用户数据目录；SQLAlchemy URL 用正斜杠
+    env: {
+      ...process.env,
+      DATABASE_URL:
+        "sqlite:///" + path.join(app.getPath("userData"), "app.db").replace(/\\\\/g, "/"),
+    },
+  });
+  // spawn 找不到可执行文件时 error 是异步事件，必须监听，否则未捕获异常
+  // 外层 try/catch 抓不到；转成变量，在下面的等待循环里抛出
+  sidecar.on("error", (err) => { sidecarError = err; });
+  // sidecar 中途退出而窗口还开着：明确提示并退出，避免白屏假活
+  sidecar.on("exit", (code) => {
+    if (!quitting && win && !win.isDestroyed()) {
+      const { dialog } = require("electron");
+      dialog.showErrorBox("服务已退出",
+        `sidecar 进程意外退出（exit code ${code}），应用将关闭`);
+      app.quit();
+    }
+  });
   sidecar.stdout.on("data", (chunk) => {
     const m = String(chunk).match(/SIDECAR_PORT=(\\d+)/);
     if (m) sidecar.port = m[1];
   });
   const deadline = Date.now() + 15000;
   while (!sidecar.port) {
+    if (sidecarError) {
+      throw new Error(`sidecar 启动失败: ${sidecarError.message}（检查 SIDECAR_EXE 路径与打包产物）`);
+    }
     if (Date.now() > deadline || sidecar.exitCode !== null) {
       throw new Error("sidecar 启动失败（SIDECAR_EXE 路径或打包有误）");
     }
@@ -943,6 +970,7 @@ app.whenReady().then(async () => {
 });
 
 app.on("before-quit", () => {
+  quitting = true;
   if (sidecar) sidecar.kill();
 });
 app.on("window-all-closed", () => app.quit());
@@ -950,6 +978,8 @@ app.on("window-all-closed", () => app.quit());
             "apps/server/sidecar_entry.py": '''# Electron 离线模式的 sidecar 入口：API + web 静态资源同源伺服
 # 打包: pyinstaller --onefile --name server-sidecar \\
 #   --add-data "../web/dist:web_dist" sidecar_entry.py
+# 产物名按平台：Windows 为 server-sidecar.exe，macOS/Linux 无后缀
+#   （Electron 壳 main.js 按 process.platform 自动选择对应名字）
 import os
 import socket
 import sys
@@ -1012,7 +1042,7 @@ if __name__ == "__main__":
 ## 双模式
 
 - **在线/开发**：`WEB_URL=http://localhost:5173 npm start`（或指向线上站点）。
-- **离线**：Electron 拉起 PyInstaller 打包的 `server-sidecar.exe`（API + web 静态资源同源伺服），stdout 读取 `SIDECAR_PORT` 后加载页面。
+- **离线**：Electron 拉起 PyInstaller 打包的 `server-sidecar`（API + web 静态资源同源伺服），stdout 读取 `SIDECAR_PORT` 后加载页面。产物名按平台不同：Windows 为 `server-sidecar.exe`，macOS/Linux 无后缀，main.js 按 `process.platform` 自动选择。
 
 ## 打包步骤
 
@@ -1021,12 +1051,14 @@ if __name__ == "__main__":
 pnpm build:web && cp -r ../web/dist ../server/web_dist
 # 2. 打包 sidecar（在 apps/server 下）
 uv run pyinstaller --onefile --name server-sidecar --add-data "web_dist:web_dist" sidecar_entry.py
-# 3. 放置产物并打包桌面壳
-mkdir -p sidecar && cp dist/server-sidecar.exe sidecar/
+# 3. 放置产物并打包桌面壳（Windows 产物是 dist/server-sidecar.exe，其余平台无后缀）
+mkdir -p sidecar && cp dist/server-sidecar* sidecar/
 npm run dist   # electron-builder，extraResources 已配置
 ```
 
 > 注：以上为 bash 语法，Windows 换用等价命令（`Copy-Item`/`mkdir`）；pyinstaller 的 `--add-data` 在 Windows 上分隔符是 `;`（如 `"web_dist;web_dist"`）。
+
+离线模式下 Electron 会把 `DATABASE_URL` 指到用户数据目录（`app.getPath("userData")/app.db`）——安装目录打包后常只读，SQLite 不能落在安装目录。
 
 ## 何时选 Electron（对比 pywebview）
 
@@ -1042,6 +1074,7 @@ npm run dist   # electron-builder，extraResources 已配置
 import os
 import sys
 import threading
+import time
 
 import uvicorn
 import webview
@@ -1050,22 +1083,45 @@ WEB_DIST = os.path.join(os.path.dirname(__file__), "..", "web", "dist")
 API_BASE = os.environ.get("API_BASE")  # 设置则走在线模式
 
 
+def _default_db_url() -> str:
+    """打包后工作目录常只读：离线模式数据库放用户数据目录（标准库方案，不引入依赖）。"""
+    if os.name == "nt":
+        base = os.environ.get("APPDATA") or os.path.expanduser("~")
+    elif sys.platform == "darwin":
+        base = os.path.join(os.path.expanduser("~"), "Library", "Application Support")
+    else:
+        base = os.environ.get("XDG_DATA_HOME") or os.path.join(
+            os.path.expanduser("~"), ".local", "share")
+    d = os.path.join(base, "{name}")
+    os.makedirs(d, exist_ok=True)
+    return "sqlite:///" + os.path.join(d, "app.db").replace(os.sep, "/")
+
+
 def start_embedded_server() -> str:
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "server", "src"))
     from server.main import app  # noqa: E402
 
     config = uvicorn.Config(app, host="127.0.0.1", port=0, log_level="warning")
     server = uvicorn.Server(config)
-    threading.Thread(target=server.run, daemon=True).start()
-    import time
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
 
-    while not server.servers:
+    # 15 秒超时（与 sidecar_entry.py 一致）：启动失败时线程会退出或超时到期，
+    # 主线程必须能发现，否则窗口永不出现且无报错
+    deadline = time.time() + 15
+    while not server.started:
+        if time.time() > deadline or not thread.is_alive():
+            print("错误: 内嵌 server 启动失败（15 秒超时或线程退出），检查 server 日志",
+                  file=sys.stderr)
+            sys.exit(1)
         time.sleep(0.05)
     port = server.servers[0].sockets[0].getsockname()[1]
     return f"http://127.0.0.1:{{port}}"
 
 
 def main() -> None:
+    if not API_BASE:
+        os.environ.setdefault("DATABASE_URL", _default_db_url())
     base = API_BASE or start_embedded_server()
     webview.create_window("{name}", base, width=1100, height=760)
     webview.start()
