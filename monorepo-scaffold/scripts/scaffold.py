@@ -121,7 +121,8 @@ exit 0
 
 pnpm install 时由 scripts/setup_hooks.cjs 自动调用（node/npm 环境无需手动）；
 纯 Python / 未跑 install 的环境手动执行一次：python scripts/install_hooks.py
-原理：git config core.hooksPath .githooks —— 本仓库的 .githooks/ 即钩子目录。
+目标仓库 = 当前工作目录所在的 git 仓库（git rev-parse --show-toplevel）——
+把 .githooks/ 拷到其他仓库后，在该仓库里执行本脚本同样生效。
 """
 from __future__ import annotations
 
@@ -139,16 +140,27 @@ def main() -> int:
             stream.reconfigure(errors="replace")
         except (AttributeError, OSError, ValueError):
             pass
-    root = Path(__file__).resolve().parent.parent
-    if not (root / HOOKS_DIR / "commit-msg").is_file():
-        print(f"FAIL: 找不到 {HOOKS_DIR}/commit-msg（请在仓库根执行）")
+    r = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        print(f"FAIL: 未找到 git 仓库（请在目标仓库内执行本脚本）: {r.stderr.strip()}")
         return 1
+    root = Path(r.stdout.strip())
+    hook = root / HOOKS_DIR / "commit-msg"
+    if not hook.is_file():
+        print(f"FAIL: 找不到 {HOOKS_DIR}/commit-msg（请在仓库根执行，或先拷入 .githooks/）")
+        return 1
+    # 补可执行位（幂等）：从 zip / Windows 拷贝会丢权限位，git 会静默忽略非可执行钩子
+    try:
+        hook.chmod(hook.stat().st_mode | 0o111)
+    except OSError:
+        pass
     r = subprocess.run(["git", "config", "--local", "core.hooksPath", HOOKS_DIR],
                        capture_output=True, text=True, cwd=root)
     if r.returncode != 0:
-        print(f"FAIL: git 不可用（非 git 仓库或未安装 git）: {r.stderr.strip()}")
+        print(f"FAIL: git config 失败: {r.stderr.strip()}")
         return 1
-    print("已启用提交信息强制校验: core.hooksPath = .githooks")
+    print(f"已启用提交信息强制校验: {root} → core.hooksPath = .githooks")
     return 0
 
 
@@ -1148,6 +1160,16 @@ def main() -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         # 二进制写入：内容含 \n 的 sh 脚本/yaml 保持 LF，避免 Windows 文本模式翻成 CRLF
         path.write_bytes(content.encode("utf-8"))
+        # 可执行位：#! 开头的脚本与提交钩子必须可执行——否则 Linux/macOS 上 git
+        # 静默忽略钩子（"hook was ignored because it's not set as executable"）。
+        # Windows 的 os.chmod 无权限位概念，调用无害，保留以保持行为同源。
+        rel_norm = rel.replace("\\", "/")
+        is_hook = rel_norm.startswith(".githooks/")
+        if content.startswith("#!") or is_hook:
+            try:
+                path.chmod(path.stat().st_mode | 0o111)
+            except OSError:
+                pass
         created += 1
         print(f"生成: {rel}")
 

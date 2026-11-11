@@ -11,8 +11,16 @@
   不再永远"契约漂移"
 - 生成的 ci.yml 调整为 `uv sync → pnpm install → pnpm gen:sdk → verify → pytest
   → build:web`：先生成 SDK 与指纹再验收，首次 push 即绿
+- 提交钩子可执行位修复：scaffold 写盘后对 `#!` 脚本与 `.githooks/*` 补 chmod +x，
+  install_hooks.py 启用时幂等补 +x（zip/Windows 拷贝丢权限位曾让 Linux/macOS
+  上钩子被 git 静默忽略）；仓库自身 `.githooks/commit-msg` 与
+  `install_impeccable.sh` 的 git 索引模式 100644→100755
+- install_hooks.py 改为以 `git rev-parse --show-toplevel` 从 cwd 定位目标仓库：
+  把 `.githooks/` 拷到其他仓库后，在该仓库里执行同样生效（原实现锁定脚本自身
+  所在项目，拷贝场景必失效）
 - Windows 实测：生成 → uv sync → pnpm gen:sdk → verify --test PASS；改 server
-  路由不重生成 → 契约漂移 FAIL；electron 模式同样 PASS
+  路由不重生成 → 契约漂移 FAIL；electron 模式同样 PASS；生成的钩子在真实 git
+  中拒绝非法提交信息（exit 1）、放行规范提交
 
 ## monorepo-scaffold 1.1.0 (2026-11-11)
 
@@ -21,6 +29,8 @@
 - generate.mjs 离线化：探针命令与 arch-verify 的 OPENAPI_PROBE_CMD 逐字一致；
   openapi-typescript 改经 createRequire 解析 bin 入口以 node 直接执行（Windows
   spawnSync("npx") 对 .cmd 垫片 ENOENT）
+- 可执行位：写盘后对 `#!` 开头脚本与 `.githooks/*` chmod +x；install_hooks.py
+  启用时幂等补 +x，并改为 cwd 的 git toplevel 定位目标仓库（拷贝场景生效）
 - 生成 README/下一步提示补 `pnpm gen:sdk`（契约指纹步骤）
 
 ## arch-verify 1.1.0 (2026-11-11)
