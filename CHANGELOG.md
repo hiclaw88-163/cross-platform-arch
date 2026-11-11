@@ -40,6 +40,12 @@
   从 apps/*/src/<包名> 与 apps/<端目录名> 动态推断，不写死；违规信息给出文件、
   行号与被引用的端。验证：core 注入 leak.py（from server.main import app /
   import cli）→ FAIL 且精确指认；删除后恢复 PASS
+- check_core_purity 改白名单制：core 源码仅允许标准库+本包自身+相对导入
+  （3.10+ 用 sys.stdlib_module_names，3.9 回退内置名单），黑名单仅用于违规
+  归类提示；新增 importlib.import_module/__import__ 字符串字面量动态导入检测
+- pyproject 依赖解析：tomllib（3.11+）优先、3.9/3.10 手写括号深度回退；包名
+  规范化（PEP 503），正确处理 extras（pydantic[email]、~=、==、环境标记）。
+  验证：四种绕过写法（extras/~= 动态导入/黑名单外框架）均 FAIL，原样 PASS
 - check_sdk_freshness：探针改为参数列表常量 OPENAPI_PROBE_CMD（与 generate.mjs
   逐字一致，消除 shell 引号差异）；stdout 统一 CRLF→LF 后求哈希；对占位指纹给
   出独立提示（区别于真实契约漂移）

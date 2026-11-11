@@ -72,38 +72,150 @@ def check_manifest(root: Path, pkg: str) -> list[str]:
     return [f"缺少必需文件: {p}" for p in missing]
 
 
+def _normalize_dep(name: str) -> str:
+    """依赖名规范化：小写，``_``/``.`` 统一为 ``-``（PEP 503）。"""
+    return re.sub(r"[-_.]+", "-", name.strip().lower())
+
+
+def _dep_base_name(requirement: str) -> str:
+    """从需求串提取规范包名：正确处理 extras(pkg[x])、~=、!=、==、>=、
+    环境标记（; python_version<...）与 URL（pkg @ file://...）。"""
+    req = requirement.split(";", 1)[0]  # 去环境标记
+    req = req.split("[", 1)[0]          # 去 extras
+    m = re.match(r"\s*([A-Za-z0-9_.\-]+)", req)
+    return _normalize_dep(m.group(1)) if m else ""
+
+
+# 3.9 回退用标准库名单（3.10+ 直接用 sys.stdlib_module_names，无需此表）
+_STDLIB_FALLBACK = {
+    "__future__", "abc", "argparse", "array", "ast", "asyncio", "atexit",
+    "base64", "bdb", "binascii", "bisect", "builtins", "bz2", "calendar",
+    "cmath", "cmd", "code", "codecs", "collections", "colorsys", "concurrent",
+    "configparser", "contextlib", "contextvars", "copy", "copyreg", "cProfile",
+    "csv", "ctypes", "curses", "dataclasses", "datetime", "dbm", "decimal",
+    "difflib", "dis", "doctest", "email", "encodings", "enum", "errno",
+    "faulthandler", "filecmp", "fileinput", "fnmatch", "fractions", "ftplib",
+    "functools", "gc", "getopt", "getpass", "gettext", "glob", "graphlib",
+    "gzip", "hashlib", "heapq", "hmac", "html", "http", "imaplib", "importlib",
+    "inspect", "io", "ipaddress", "itertools", "json", "keyword", "linecache",
+    "locale", "logging", "lzma", "mailbox", "mailcap", "marshal", "math",
+    "mimetypes", "mmap", "modulefinder", "multiprocessing", "netrc", "numbers",
+    "operator", "optparse", "os", "pathlib", "pdb", "pickle", "pickletools",
+    "pipes", "pkgutil", "platform", "plistlib", "poplib", "posixpath", "pprint",
+    "profile", "pstats", "pty", "pwd", "py_compile", "pyclbr", "queue", "quopri",
+    "random", "re", "readline", "reprlib", "resource", "rlcompleter", "runpy",
+    "sched", "secrets", "select", "selectors", "shelve", "shlex", "shutil",
+    "signal", "site", "smtpd", "smtplib", "sndhdr", "socket", "socketserver",
+    "sqlite3", "ssl", "stat", "statistics", "string", "stringprep", "struct",
+    "subprocess", "symtable", "sys", "sysconfig", "tarfile", "telnetlib", "tempfile",
+    "termios", "textwrap", "threading", "time", "timeit", "tkinter", "token",
+    "tokenize", "trace", "traceback", "tracemalloc", "tty", "turtle", "types",
+    "typing", "unicodedata", "unittest", "urllib", "uu", "uuid", "venv",
+    "warnings", "wave", "weakref", "webbrowser", "wsgiref", "xml", "xmlrpc",
+    "zipapp", "zipfile", "zipimport", "zlib", "zoneinfo",
+}
+
+
+def _stdlib_names() -> set[str]:
+    names = getattr(sys, "stdlib_module_names", None)
+    return set(names) if names else set(_STDLIB_FALLBACK)
+
+
+def _core_dep_literals(text: str) -> list[str]:
+    """提取 core pyproject 的依赖需求串。优先 tomllib（3.11+）；
+    3.9/3.10 回退到手写括号深度解析（兼容单行/多行数组与注释）。"""
+    try:
+        import tomllib  # noqa: F401  3.11+
+    except ModuleNotFoundError:
+        deps: list[str] = []
+        depth = 0
+        for raw in text.splitlines():
+            line = raw.split("#", 1)[0]
+            if depth == 0 and re.match(r"^\s*(optional-)?dependencies\s*=", line):
+                depth += line.count("[") - line.count("]")
+                deps += re.findall(r'"([^"]+)"', line)
+            elif depth > 0:
+                depth += line.count("[") - line.count("]")
+                deps += re.findall(r'"([^"]+)"', line)
+                if depth <= 0:
+                    depth = 0
+        return deps
+    try:
+        data = tomllib.loads(text)
+    except Exception:
+        return []  # 解析不了就不误报（结构检查另有门禁）
+    project = data.get("project", {}) or {}
+    deps = list(project.get("dependencies", []) or [])
+    for extra in (project.get("optional-dependencies") or {}).values():
+        deps.extend(extra or [])
+    return deps
+
+
 def check_core_purity(root: Path, pkg: str) -> list[str]:
+    """核心纯净性检查（白名单制）：core 源码仅允许 标准库 + 本包自身 + 相对导入，
+    pyproject 依赖不得声明任何第三方包。黑名单 FORBIDDEN_IN_CORE 仅用于把违规
+    提示归类为"框架"还是"非标准库第三方"。额外检测 importlib.import_module /
+    __import__ 的字符串字面量动态导入。"""
     fails: list[str] = []
     core_src = root / f"packages/core/src/{pkg}_core"
     if not core_src.is_dir():
         return [f"核心目录不存在: {core_src}"]
+    allowed = _stdlib_names() | {pkg.lower(), f"{pkg}_core".lower(), "__future__"}
     for py in core_src.rglob("*.py"):
         try:
             tree = ast.parse(py.read_text(encoding="utf-8"))
-        except SyntaxError as e:
+        except (SyntaxError, ValueError, UnicodeDecodeError) as e:
             fails.append(f"语法错误 {py.relative_to(root)}: {e}")
             continue
         for node in ast.walk(tree):
-            names: list[str] = []
             if isinstance(node, ast.Import):
-                names = [a.name.split(".")[0] for a in node.names]
-            elif isinstance(node, ast.ImportFrom) and node.module:
-                names = [node.module.split(".")[0]]
-            for n in names:
-                if n in FORBIDDEN_IN_CORE:
+                mods = [a.name for a in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                if node.level > 0:  # 相对导入属于本包内部，放行
+                    continue
+                mods = [node.module] if node.module else []
+            else:
+                continue
+            for mod in mods:
+                top = mod.split(".")[0].lower()
+                if top in allowed:
+                    continue
+                kind = "框架" if _normalize_dep(top) in FORBIDDEN_IN_CORE else "非标准库第三方"
+                fails.append(
+                    f"核心纯净性违规: {py.relative_to(root)}:{node.lineno} "
+                    f"import 了{kind} '{mod}' —— core 只允许标准库"
+                )
+        # 动态导入：importlib.import_module("x") / __import__("x") 的字符串字面量
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            fn = node.func
+            dynamic = (
+                (isinstance(fn, ast.Attribute) and fn.attr == "import_module"
+                 and isinstance(fn.value, ast.Name) and fn.value.id == "importlib")
+                or (isinstance(fn, ast.Name) and fn.id == "__import__")
+            )
+            if dynamic and node.args and isinstance(node.args[0], ast.Constant) \
+                    and isinstance(node.args[0].value, str):
+                mod = node.args[0].value
+                top = mod.split(".")[0].lower()
+                if top not in allowed:
+                    kind = "框架" if _normalize_dep(top) in FORBIDDEN_IN_CORE else "非标准库第三方"
                     fails.append(
-                        f"核心纯净性违规: {py.relative_to(root)} import 了框架 '{n}'"
+                        f"核心纯净性违规: {py.relative_to(root)}:{node.lineno} "
+                        f"动态 import 了{kind} '{mod}' —— core 只允许标准库"
                     )
-    # pyproject 依赖检查：兼容单行 dependencies = ["x"] 与多行数组
+    # pyproject 依赖检查（tomllib/回退解析，正确处理 extras、~=、==、环境标记）
     proj = root / "packages/core/pyproject.toml"
     if proj.exists():
-        text = proj.read_text(encoding="utf-8")
-        m = re.search(r"^dependencies\s*=\s*\[(.*?)\]", text, re.DOTALL | re.MULTILINE)
-        if m:
-            for item in re.findall(r'"([^"]+)"', m.group(1)):
-                base = item.split(">")[0].split("<")[0].split("=")[0].strip().lower()
-                if base in FORBIDDEN_IN_CORE:
-                    fails.append(f"核心 pyproject 声明了框架依赖: {item}")
+        for req in _core_dep_literals(proj.read_text(encoding="utf-8")):
+            base = _dep_base_name(req)
+            if not base:
+                continue
+            if base in FORBIDDEN_IN_CORE:
+                fails.append(f"核心 pyproject 声明了框架依赖: {req}")
+            elif base not in _stdlib_names() and base != _normalize_dep(pkg):
+                fails.append(f"核心 pyproject 声明了非标准库依赖: {req}")
     return fails
 
 
