@@ -1,5 +1,12 @@
 # Changelog
 
+## monorepo-scaffold 1.1.8 (2026-11-11)
+
+- v2.0.4 复核修正：1.1.4 条目原写"第一次真正请求数据时才报错"与实测相反——
+  lifespan 里 init_db 建表会连库，db 不可达时 uvicorn 启动即失败（exit 3）。
+  行为保持不变（启动失败快 + compose restart 重试），更正 CHANGELOG 描述与
+  生成 main.py 里的同源注释
+
 ## arch-verify 1.1.5 (2026-11-11)
 
 - 封堵六边形桥动态导入漏报：`importlib.import_module("...")` / `__import__("...")`
@@ -67,9 +74,12 @@
 - 修复 db 未就绪时 server 在导入阶段崩溃（实测：DATABASE_URL 指向不可达 Postgres，
   `import server.main` 抛 OperationalError）：仓储实例化与建表从模块导入期挪到
   应用启动期（FastAPI lifespan 里 init_db + 存 app.state，路由经 Depends 注入，
-  不再导入 adapters；create_engine 本身惰性）。选择方案：**导入不连库，第一次
-  真正请求数据时才报错**。docker-compose.yml 补 db healthcheck（pg_isready）、
-  server `depends_on: condition: service_healthy` 与 `restart: on-failure`
+  不再导入 adapters；create_engine 本身惰性）。选择方案：**导入不连库 + 启动期
+  建表失败快**——实测 db 不可达时 uvicorn 在启动期即失败（lifespan 里 create_all
+  连库，`Application startup failed`，exit 3），compose 侧由 restart: on-failure
+  重试；行为本身对 compose 合理，v2.0.4 复核纠正了本条目原先与实际相反的描述。
+  docker-compose.yml 补 db healthcheck（pg_isready）、server
+  `depends_on: condition: service_healthy` 与 `restart: on-failure`
   （compose 竞态为推断项，无 Docker 环境未实测）。验证：不可达 DB 下
   `import server.main` OK、pytest 通过、SQLite 基线全链路可用（创建/422 中文
   提示/列表）、verify --test PASS（契约探针导入不再需要数据库）

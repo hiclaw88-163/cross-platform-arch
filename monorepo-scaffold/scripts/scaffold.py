@@ -497,7 +497,7 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         # 仓储与建表放启动期而非导入期：import server.main 不再连数据库
-        # （db 未就绪时导入不会崩，第一次请求才需要真实连接）
+        # （db 不可达时启动即失败——启动失败快，compose 由 restart: on-failure 重试）
         repo = SqlTaskRepository()
         repo.init_db()
         app.state.repo = repo
