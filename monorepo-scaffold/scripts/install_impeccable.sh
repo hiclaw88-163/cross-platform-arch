@@ -10,7 +10,9 @@ REPO="https://github.com/pbakaus/impeccable.git"
 mkdir -p "$DEST"
 TMP="$(mktemp -d)"
 echo "[1/3] 浅克隆 $REPO ..."
-git -c http.schannelCheckRevoke=false clone --depth 1 "$REPO" "$TMP/impeccable"
+# 注：保持证书吊销检查开启（默认安全）。Windows 企业代理若因吊销检查失败，
+# 自行评估风险后临时追加 -c http.schannelCheckRevoke=false，不要写死进脚本。
+git clone --depth 1 "$REPO" "$TMP/impeccable"
 echo "[2/3] 复制 .agent/skills/impeccable -> $DEST/impeccable"
 rm -rf "$DEST/impeccable"
 cp -r "$TMP/impeccable/.agent/skills/impeccable" "$DEST/impeccable"

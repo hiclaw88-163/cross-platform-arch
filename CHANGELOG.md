@@ -42,6 +42,11 @@
   arch-verify 权威版本字节一致性强制校验。验证：篡改副本 → 校验 FAIL，
   还原 → PASS
 - 生成 README/SKILL 验证指引更新（项目内副本为首选路径）
+- install_impeccable.sh 移除写死的 `http.schannelCheckRevoke=false`（它会关闭
+  Windows 证书吊销检查）；脚本/SKILL.md 保留"上游无 LICENSE"的显式说明
+- references/design/README.md 补体积说明：ui-ux-pro-max 约 3.4MB 的来源
+  （phosphor 图标索引/Google Fonts 元数据/许可证清单三份数据）与保留理由
+  （离线自足），只评估未删数据
 
 ## repo 2.0.3 (2026-11-11)
 

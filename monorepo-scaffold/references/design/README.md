@@ -12,6 +12,20 @@
 | `animation-vocabulary/`、`improve-animations/` | anthropics/skills（Emil Kowalski 贡献） | Apache 2.0 | 2026-11 main |
 | impeccable（**未 vendor**） | pbakaus/impeccable | **仓库无 LICENSE**，不可复制分发 | 按需用 `scripts/install_impeccable.sh` 克隆 |
 
+## 体积说明（ui-ux-pro-max 数据集，约 3.4MB）
+
+大头是三份上游数据（离线检索依赖，删除会让规则/字体/图标检索失效）：
+
+| 文件 | 体积 | 用途 |
+|---|---|---|
+| `data/phosphor-icons-upstream.json` | ~805KB | Phosphor 图标全量索引（图标名/分类检索） |
+| `data/google-fonts.csv` | ~730KB | Google Fonts 字体元数据（人格/配对检索） |
+| `data/google-font-licenses.json` | ~423KB | 字体许可证清单（商用合规排查） |
+
+评估结论：**保留**。改为按需下载会让 skill 失去"离线自足"性质（agent 运行环境
+未必有网），且检索工具 `scripts/` 直接读这些文件；数据均为文本、git 压缩后
+实际仓库增量远小于 3.4MB。后续如需瘦身，应在上游对数据做精简后再同步。
+
 ## 加载顺序（生成/精修前端时严格按此执行）
 
 ```
