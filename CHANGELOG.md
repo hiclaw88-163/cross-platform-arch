@@ -1,5 +1,15 @@
 # Changelog
 
+## arch-verify 1.1.2 (2026-11-11)
+
+- 修复六边形桥检查误报：规约允许的规范导入形式 `from <engine>.bridge import X`
+  与 `import <engine>.bridge`（含 `as` 别名）被 ast 判定误判违规（报错文案还与
+  放行规则自相矛盾）。check_hexagonal 改为精确匹配规范形式——`<engine>.bridge`
+  本体与 `from <engine>.bridge import`（仅 bridge 名）放行；`import <engine>`
+  本体、`import <engine>.store` 等子模块、`from <engine>.bridge.sub import`
+  （桥下更深模块）仍判违规。回归 7 场景：规范 3 形式 0 违规、违规 4 形式各
+  拦 1 违规；同步 monorepo-scaffold 同源副本（字节一致）
+
 ## cross-platform-design 1.0.1 (2026-11-11)
 
 - references/hexagonal-arch.md 快速自检：具名 CLI `open-work-kit-cli` 改为

@@ -286,9 +286,11 @@ def check_hexagonal(root: Path) -> tuple[bool, list[str]]:
     """六边形门禁(规约 R4 + 端间隔离,见 references/hexagonal-arch.md):
 
     1. 引擎必须提供 bridge.py 作为唯一出桥模块;
-    2. 各端只允许 `from <engine>.bridge import ...` 触达引擎(ast 解析,
-       `from engine import (a, b)` 多名导入同样被检查),直接 import 引擎
-       内部子包即违规;
+    2. 各端只允许经 bridge 触达引擎(ast 解析)——**规范形式放行**:
+       `from <engine> import bridge`、`from <engine>.bridge import ...`、
+       `import <engine>.bridge`; **违规**: `import <engine>`、`from <engine>
+       import <非bridge名字>`、`from <engine> import bridge, <其他>`、
+       `from <engine>.<非bridge子包> import ...`(含 `bridge.<更深子模块>`);
     3. 端之间禁止互相 import(白名单除外)。
 
     返回 (是否执行, 违规列表)。项目没有 packages/engine(如 monorepo-scaffold
@@ -328,9 +330,12 @@ def check_hexagonal(root: Path) -> tuple[bool, list[str]]:
                     for alias in node.names:
                         parts = alias.name.split(".")
                         if parts[0] == engpkg:
-                            fails.append(
-                                f"{f.relative_to(root)}:{node.lineno} 直接 import "
-                                f"{alias.name}——端只允许经 {engpkg}.bridge 触达引擎(规约 R4)")
+                            # 规范形式放行：import <engine>.bridge；
+                            # import <engine> / <engine>.<其他子包> → 违规
+                            if alias.name != f"{engpkg}.bridge":
+                                fails.append(
+                                    f"{f.relative_to(root)}:{node.lineno} 直接 import "
+                                    f"{alias.name}——端只允许经 {engpkg}.bridge 触达引擎(规约 R4)")
                         elif parts[0] in end_names and parts[0] != end and \
                                 parts[0] not in _END_IMPORT_WHITELIST.get(end, ()):
                             fails.append(
@@ -339,12 +344,16 @@ def check_hexagonal(root: Path) -> tuple[bool, list[str]]:
                 elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
                     parts = node.module.split(".")
                     if parts[0] == engpkg:
-                        # from engine import bridge → 放行名字 bridge；
-                        # from engine import bridge, store / from engine.store import x → 违规
-                        if len(parts) == 1:
+                        # 规范形式放行：from <engine> import bridge（单个名字）
+                        # 与 from <engine>.bridge import X；
+                        # 违规：from <engine> import bridge, store（多名）/
+                        # from <engine>.store import x / from <engine>.bridge.sub import x
+                        if node.module == engpkg:
                             bad = [a.name for a in node.names if a.name != "bridge"]
+                        elif node.module == f"{engpkg}.bridge":
+                            bad = []
                         else:
-                            bad = [".".join([engpkg, *parts[1:]])]
+                            bad = [node.module]
                         for name in bad:
                             fails.append(
                                 f"{f.relative_to(root)}:{node.lineno} 直接 import "
