@@ -14,7 +14,8 @@
   - 引用闭合: SKILL.md 正文里提到的 references/…、scripts/…、evals/… 相对路径必须存在
     （各 skill 完全独立、互不依赖，禁止 ../ 跨 skill 文件引用）
   - 版本一致性: frontmatter metadata.version 必须等于 CHANGELOG.md 中该 skill
-    最新条目（第一个 `## <skill名> x.y.z`）的版本号
+    最新条目（第一个 `## <skill名> x.y.z`）的版本号；缺少 metadata.version 判
+    FAIL；CHANGELOG.md 不存在时跳过比对，无该 skill 条目时报"无条目"
   - evals/evals.json 存在时校验结构（skill_name 与 frontmatter.name 一致、条目键齐全）
 """
 from __future__ import annotations
@@ -50,12 +51,28 @@ def parse_frontmatter(content: str) -> tuple[dict[str, str] | None, str | None]:
     return fm, None
 
 
-def metadata_version(content: str) -> str | None:
-    """提取嵌套键 metadata.version（轻量解析，无 PyYAML；version 是缩进子键，
-    parse_frontmatter 顶层扫描看不到它）。"""
-    fm_text = content.split("\n---", 1)[0]
-    m = re.search(r'^metadata:\s*$(?:\n[ \t]+version:\s*"?([^"\n]+)"?)?', fm_text, re.M)
-    return m.group(1).strip() if m and m.group(1) else None
+def metadata_version(content: str) -> tuple[bool, str | None]:
+    """提取嵌套键 metadata.version（轻量解析，无 PyYAML）。
+
+    定位 `metadata:` 行，收集其后所有缩进更深的行作为该块（遇到缩进回到
+    顶层的非空行即结束），在块内找 `version:` 子键——version 不必是第一个
+    子键；值两端的单、双引号都剥除。返回 (块内是否存在 version, 版本值)。
+    """
+    in_block = False
+    for line in content.split("\n---", 1)[0].splitlines():
+        if not in_block:
+            if re.match(r"^metadata:\s*$", line):
+                in_block = True
+            continue
+        if line.strip() and not line.startswith((" ", "\t")):
+            break  # 缩进回到顶层，metadata 块结束
+        m = re.match(r"^[ \t]+version:\s*(.+?)\s*$", line)
+        if m:
+            val = m.group(1).strip()
+            if len(val) >= 2 and val[0] == val[-1] and val[0] in "\"'":
+                val = val[1:-1]
+            return True, val
+    return False, None
 
 
 def validate_one(root: Path) -> str | None:
@@ -132,17 +149,20 @@ def validate_one(root: Path) -> str | None:
                         "不一致——两份必须同源（以 arch-verify 为准同步）")
 
     # 版本一致性：frontmatter metadata.version 必须等于 CHANGELOG 中该 skill
-    # 最新条目（第一个 `## <skill名> x.y.z`）的版本号——改版漏更其一即漂移
-    ver = metadata_version(content)
-    if ver:
-        changelog = root.parent / "CHANGELOG.md"
-        if changelog.exists():
-            m = re.search(rf"^## {re.escape(name)} (\d+\.\d+\.\d+)\b",
-                          changelog.read_text(encoding="utf-8"), re.M)
-            latest = m.group(1) if m else None
-            if latest != ver:
-                return (f"版本不一致: SKILL.md metadata.version={ver}, "
-                        f"CHANGELOG.md 最新 {name} 条目={latest or '无条目'}")
+    # 最新条目（第一个 `## <skill名> x.y.z`）的版本号——改版漏更其一即漂移；
+    # 缺少 metadata.version 同样 FAIL。CHANGELOG.md 不存在（如校验仓库外目录）
+    # 时跳过比对；CHANGELOG 里没有该 skill 条目时报"无条目"
+    has_ver, ver = metadata_version(content)
+    if not has_ver:
+        return "缺少 metadata.version（frontmatter metadata 块内没有 version 子键）"
+    changelog = root.parent / "CHANGELOG.md"
+    if changelog.exists():
+        m = re.search(rf"^## {re.escape(name)} (\d+\.\d+\.\d+)\b",
+                      changelog.read_text(encoding="utf-8"), re.M)
+        latest = m.group(1) if m else None
+        if latest != ver:
+            return (f"版本不一致: SKILL.md metadata.version={ver}, "
+                    f"CHANGELOG.md 最新 {name} 条目={latest or '无条目'}")
 
     # evals.json 可选校验
     ev_path = root / "evals/evals.json"

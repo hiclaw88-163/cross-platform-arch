@@ -1,5 +1,15 @@
 # Changelog
 
+## repo 2.0.4 (2026-11-11)
+
+- tools/validate_skill.py 版本校验修正三种边界场景（原 regex 把 version 限定为
+  metadata: 后第一个缩进子键、只剥双引号）：version 不是第一个子键 → 漏检改
+  为正确比对；单引号值 → 误报改为正确剥除比对；metadata 块缺 version → 静默
+  跳过改为 FAIL。CHANGELOG.md 不存在（校验仓库外目录）时跳过比对，无该 skill
+  条目时报"无条目"。验证（临时仓库副本）：基线 5 skill 全 PASS；9.9.9 非
+  首子键 → FAIL 指认；'1.1.4' 单引号匹配 → PASS；删 version → FAIL"缺少
+  metadata.version"
+
 ## monorepo-scaffold 1.1.7 (2026-11-11)
 
 - 收紧 CORS 默认值：`allow_origins=["*"]` 改为 `_cors_origins()`——`CORS_ORIGINS`
