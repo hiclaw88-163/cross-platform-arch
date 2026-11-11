@@ -3,7 +3,7 @@ name: arch-verify
 description: 一核多端项目的机器门禁验收：verify_project.py 七项检查 + 产出规范与质量门禁清单。TRIGGER when 验收或检查项目是否符合一核多端架构要求、把架构约束交给机器判定、诊断"页面样式不完整/间距颜色没生效"这类 token 未定义问题；DO NOT TRIGGER when 从零生成新项目（用 monorepo-scaffold）、修改架构规范本身（用 cross-platform-design）。
 license: MIT
 metadata:
-  version: "1.1.3"
+  version: "1.1.4"
 ---
 
 # 一核多端项目机器门禁验收
@@ -23,7 +23,7 @@ python scripts/verify_project.py --project /path/to/my-app --test
 5. **六边形桥闭合**——各端只许 `from <engine>.bridge import` 触达引擎；项目没有 `packages/engine` 时该项显式 SKIP（PASS 行只列真正执行过的检查，不谎报"桥闭合"）。
 6. **契约新鲜度**——后端改了没重新生成 SDK（openapi.sha256 指纹漂移）→ FAIL。
 7. **无空包残留**——改名后留下的空目录会被 Python 当成命名空间包，让 `from X import Y` 假成功、内部 `AttributeError` 被吞——台账/日志类副作用会静默丢失。
-8. **核心测试通过**（仅 `--test`）。
+8. **核心测试通过**（仅 `--test`）——因缺 uv 等原因未能执行时判 **FAIL**（"测试没跑"不能被当成"测试通过"）；其余 SKIP 项（无 engine 的六边形桥、缺 uv 的契约新鲜度）保持 SKIP 不算失败。
 
 任何一项 FAIL 必须先修复再继续后续流程。
 

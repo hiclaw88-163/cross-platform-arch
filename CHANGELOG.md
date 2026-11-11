@@ -1,5 +1,15 @@
 # Changelog
 
+## arch-verify 1.1.4 (2026-11-11)
+
+- 修复验收漏洞：显式传 `--test` 而核心测试因缺 uv 被跳过时，此前整体仍 PASS、
+  exit 0——CI 会把"测试没跑"当成"测试通过"。改为 FAIL（exit 1），信息明确
+  写出"--test 已指定但核心测试未能执行：未检测到 uv"；由 main() 统一升级，
+  check_tests 不特殊处理。不带 --test 时行为不变：契约新鲜度缺 uv 仍 SKIP、
+  无 engine 的六边形桥仍 SKIP。验证：有 uv --test PASS exit 0 / 无 uv --test
+  FAIL exit 1 / 无 uv 不带 --test PASS exit 0
+- 同步 monorepo-scaffold 同源副本（字节一致）
+
 ## arch-verify 1.1.3 (2026-11-11)
 
 - 修复 Token 闭合检查误报：注释里的 var 引用（CSS 块注释 / TS 行首注释 /
@@ -57,6 +67,11 @@
 
 - 「08-提交信息规范」模板同步提交钩子强制规则（详见 repo 2.0.3 条目）：
   单号必填、示例带单号、规则重排
+
+## monorepo-scaffold 1.1.2 (2026-11-11)
+
+- 同步 arch-verify 1.1.4 自检器同源副本（字节一致）：--test 被指定而核心测试
+  因缺 uv 被跳过时判 FAIL，不再让 CI 把"测试没跑"当"测试通过"
 
 ## monorepo-scaffold 1.1.1 (2026-11-11)
 

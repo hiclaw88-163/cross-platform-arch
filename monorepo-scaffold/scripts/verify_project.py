@@ -5,7 +5,8 @@
     python verify_project.py --project /path/to/my-app [--test]
 
 检查项（共 7 项，--test 时加跑第 8 项；全部通过输出 PASS，否则逐条列出 FAIL，
-被跳过的项显式输出 SKIP——PASS 行只列真正执行过的检查）:
+被跳过的项显式输出 SKIP——PASS 行只列真正执行过的检查。唯一例外: 显式传了
+--test 而核心测试因缺 uv 被跳过时判 FAIL——"测试没跑"绝不能被当成"测试通过"）:
   1. 结构完整性 —— 必需文件全部存在（含核心/各端/契约流水线/设计决策记录）
   2. 核心纯净性 —— packages/core 只允许 标准库 + 本包自身（白名单制，
      含 importlib.import_module/__import__ 动态导入检测）
@@ -19,6 +20,7 @@
   7. 无空包残留 —— 改名/重构残留的空目录会被 Python 当命名空间包，
      让导入假成功（真实事故: 空目录吞掉台账写入）
   8. 核心测试通过 —— (--test) 运行 uv run pytest packages/core/tests
+     （缺 uv 时该项 SKIP，但 --test 之下升级为 FAIL）
 """
 from __future__ import annotations
 
@@ -559,6 +561,14 @@ def main() -> int:
         results.append(("核心测试", has_uv,
                         check_tests(root) if has_uv else [],
                         "未检测到 uv，核心测试跳过"))
+        # 显式要求跑测试却没跑成（缺 uv 等）→ 由 main() 统一升级为 FAIL：
+        # CI 会把"测试没跑"当成"测试通过"。其余 SKIP（无 engine 的六边形桥、
+        # 缺 uv 的契约新鲜度）不受影响，保持 SKIP
+        name, done, ms, note = results[-1]
+        if not done:
+            reason = (note or "环境不满足").split("，")[0]
+            results[-1] = (name, True,
+                           [f"--test 已指定但核心测试未能执行：{reason}"], None)
 
     fails = [m for _, done, ms, _ in results if done for m in ms]
     skipped = [(name, note) for name, done, _, note in results if not done]
