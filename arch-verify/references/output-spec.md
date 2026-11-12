@@ -49,8 +49,10 @@
 ### C3 结构完整性
 上表文件必须齐全（electron 模式另含 main.js/desktop package.json/sidecar_entry.py/desktop README）（缺 CI 配置、缺 tokens.css 都算 FAIL）。
 
-### C4 测试通过
-`uv run pytest packages/core/tests` 必须绿。业务规则（如"标题≥2字"）要有核心层单测覆盖。
+### C4 测试与 web 类型
+`uv run pytest packages/core/tests` 必须绿（业务规则如"标题≥2字"要有核心层单测覆盖）；
+web 端 `vue-tsc --noEmit` 必须绿（2026-11-12 收编，检查项 9）——web DTO 派生自
+SDK 契约生成物后，server 改字段、web 没跟上会在编译期当场报错，契约漂移不再靠人眼。
 
 ### C5 Token 引用闭合（样式残缺是隐性破损）
 web 端（App.vue / styles/*.css）引用的每个 `var(--x)` 必须在 `tokens.css` 或引用所在文件中有定义。该类破损不报错、不崩构建，页面只是"安静地变丑"——人工 review 极易漏检，由 verify 检查项 4 机器判定。

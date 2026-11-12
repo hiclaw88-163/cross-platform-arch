@@ -3,7 +3,7 @@ name: project-docs
 description: 项目文档体系（docs 仓库）标准结构与脚手架。TRIGGER when 为新项目搭建文档体系/docs 仓库、整改散乱的项目文档、写 AGENTS.md/规范索引/ADR/00-项目配置、决定某份文档该放哪、文档之间冲突不知道以谁为准；DO NOT TRIGGER when 生成代码工程脚手架（用 monorepo-scaffold）、编写单篇业务文档的正文内容、多端架构设计问答（用 cross-platform-design）。
 license: MIT
 metadata:
-  version: "1.2.3"
+  version: "1.3.0"
 ---
 
 # 项目文档体系（project-docs）
@@ -32,7 +32,7 @@ metadata:
 python scripts/init_docs.py --name my-app --dir /path/to/my-app-docs
 ```
 
-生成骨架：`AGENTS.md`、`README.md`、`TODO.md`、`conventions/00-项目配置.md`、`conventions/规范索引.md`、`conventions/08-提交信息规范.md`、`adr/`（含模板）、`guides/`、`specs/`、`plans/`、`scripts/`。`{project}`/`{projectName}` 占位符自动替换；其余占位符（如 `{date}`、`{basePackage}`）保留原样，由人按项目事实填。`--force` 覆盖已存在文件。
+生成骨架：`AGENTS.md`、`README.md`、`TODO.md`、`conventions/00-项目配置.md`、`conventions/规范索引.md`、`conventions/02-开发红线.md`（家族默认红线，配套 verify 门禁）、`conventions/08-提交信息规范.md`、`conventions/99-规范模板.md`、`adr/`（含模板）、`guides/`、`specs/`（README 含 TOGAF 映射 + 一核多端标准起步骨架）、`plans/`、`scripts/`。`{project}`/`{projectName}` 占位符自动替换；其余占位符（如 `{date}`、`{basePackage}`、`{gate-cmd}`）保留原样，由人按项目事实填。`--force` 覆盖已存在文件。
 
 ## 写法纪律（详见 references/templates.md）
 

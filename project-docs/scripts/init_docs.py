@@ -7,9 +7,9 @@
 行为:
     1. 按 templates/ 生成骨架: AGENTS.md、README.md、TODO.md、
        conventions/00-项目配置.md、conventions/规范索引.md、conventions/规范模板.md、
-       conventions/提交信息规范.md、adr/ADR-模板.md、specs/README.md
-       （层级字母↔子目录映射入口，默认 TOGAF 映射）,
-       以及 guides/ plans/ scripts/ 空目录(.gitkeep)
+       conventions/02-开发红线.md、conventions/提交信息规范.md、adr/ADR-模板.md、
+       specs/README.md（层级字母↔子目录映射入口，默认 TOGAF 映射 + 一核多端
+       标准起步骨架）, 以及 guides/ plans/ scripts/ 空目录(.gitkeep)
     2. 仅替换 {project}/{projectName} 两个占位符; 其余占位符（{basePackage}、{date}、
        {owners}…）保留原样, 由人按项目事实填写
     3. 默认不覆盖已存在文件; --force 覆盖
@@ -33,6 +33,9 @@ FILES = [
     # 规范模板用 99 号：01-08 留给项目真实规范（01-命名空间、02-分层…、08-提交信息），
     # 模板是空壳样板，不占用真实编号（曾与索引路由 01-命名空间.md 冲突）
     ("conventions/规范模板.md", "conventions/99-规范模板.md"),
+    # 开发红线用 02 号：与 cross-platform-design 门禁配套的家族默认红线
+    # （提炼自 Kabao 实战 02-开发红线；{gate-cmd} 由 00-项目配置对齐后人工替换）
+    ("conventions/开发红线.md", "conventions/02-开发红线.md"),
     ("conventions/提交信息规范.md", "conventions/08-提交信息规范.md"),
     ("adr/ADR-模板.md", "adr/ADR-001-结论式标题.md"),
     ("specs/README.md", "specs/README.md"),

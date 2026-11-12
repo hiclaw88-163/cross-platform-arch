@@ -1,5 +1,59 @@
 # Changelog
 
+## monorepo-scaffold 1.3.2 (2026-11-12)
+
+- 同步 arch-verify 1.3.1 自检器同源副本（字节一致）：subprocess 输出 None 设防
+
+## arch-verify 1.3.1 (2026-11-12)
+
+- **subprocess 输出 None 设防**（Kabao 实测瞬态崩溃复盘）：check_tests 的 pytest
+  tail 与 vue-tsc tails、check_sdk_freshness 的 stderr tail 三处 `r.stdout +
+  r.stderr` 拼接——capture_output 理论必非 None，但 Kabao 门禁真实崩溃过一次
+  `None + str`（shell profile 部分初始化的环境瞬态），且当时恰逢管道消费方
+  吞掉退出码导致 `&&` 误续。门禁崩溃 = 门禁失明，三处全部 `(x or "")` 设防；
+  同步 Kabao 本仓定制版三处。验证：Kabao --test PASS exit 0
+
+## cross-platform-design 1.1.0 (2026-11-12)
+
+- 契约派生范式收编（提炼自 Kabao 实测整改）：clients.md §4 web 行新增
+  「DTO 一律派生自 SDK 生成物」——`WithSignal<T>` 形态示例 + 嵌套字段必须同样
+  窄化的真实事故注记（顶层窄化漏嵌套 credentials，手写类型永远发现不了）；
+  §5 验收清单与 §6 业界对照表同步 3 行（折中方案/派生范式/COLA 演进观）
+- hexagonal-arch.md R7 增补《阿里巴巴 Java 开发手册》折中方案：Service/Manager
+  可直接操作数据领域模型 → server Out 允许直接从 domain 字段映射（两底线=
+  Out 显式声明 + web DTO 派生自 SDK）
+- clients.md §4 server 行新增拆分阈值：Out 模型 >10 个或端点按域 >2 组 →
+  拆 schemas.py + routers/{域}.py（COLA"精简版起步、复杂度上升再拆"演进观落地）
+- SKILL.md 核心原则 2 加派生红线与 vue-tsc 门禁；version 1.0.2→1.1.0
+
+## arch-verify 1.3.0 (2026-11-12)
+
+- **check_tests 收编 web 端类型检查（第 9 项）**：pytest 绿后追加
+  `pnpm --dir apps/web exec vue-tsc --noEmit`（pnpm 缺失报 FAIL 不静默跳过、
+  300s 超时独立报错、失败取末 5 行提示"契约漂移?"）。契约漂移此前只靠
+  契约指纹门禁兜"没重新生成"，手写 DTO 绕过 SDK 派生不触发指纹——类型检查
+  补上"形状漂移"盲区。docstring 检查清单改 9 项；output-spec C4 改名
+  「测试与 web 类型」。验证：Kabao 真实项目回归 [] + 负对照探针
+  （引用不存在字段）精确报 TS2339
+- 同步 monorepo-scaffold 同源副本（字节一致，monorepo-scaffold 1.3.1）
+
+## monorepo-scaffold 1.3.1 (2026-11-12)
+
+- 同步 arch-verify 1.3.0 自检器同源副本（字节一致）：check_tests 第 9 项
+  web 端 vue-tsc 类型检查收编
+
+## project-docs 1.3.0 (2026-11-12)
+
+- **新增 `templates/conventions/开发红线.md`**（脚手架挂载为
+  `conventions/02-开发红线.md`）：七条总原则（端零映射/core 纯净/契约先行+
+  派生范式/显式报错/token 单源/{gate-cmd} 门禁）+ 第 7 条项目特有追加位 +
+  七项检查清单。提炼自 Kabao 02-开发红线；{gate-cmd}/{contract-dir} 等占位符
+  留人工替换，与前 6 条家族默认区分
+- templates/specs/README.md 新增「标准起步骨架」节：一核多端项目五份起步
+  文档推荐（产品定位/一核多端落地/领域与动作模型/信息架构/横切底座，
+  `{A}1-01`…`{A}4-01` 命名对应层级映射）
+- SKILL.md 脚手架生成清单同步（含 02-开发红线、99-规范模板、起步骨架）
+
 ## database-design 1.0.0 (2026-11-11)
 
 - **新增 skill**：表设计纪律 + SQLite↔PostgreSQL 双方言桥（提炼自实际项目数据库规范，去 MySQL 化：

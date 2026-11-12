@@ -59,18 +59,20 @@ apps/<end>/
 
 | 端 | 额外纪律 |
 |---|---|
-| server | 每个查询端点必须 `response_model`（R7）；鉴权/限流/CORS 只在此层 |
+| server | 每个查询端点必须 `response_model`（R7）；鉴权/限流/CORS 只在此层；**拆分阈值**：Out 模型 >10 个或端点按域 >2 组 → 拆 `schemas.py` + `routers/{域}.py`——阈值触发才拆，不提前（COLA"精简版起步"演进观） |
 | cli | 命令 = 用例的 1:1 映射，禁止命令内私编循环编排；退出码语义来自 core 状态 |
-| web | api 层类型**只来自 SDK 生成物**，不手写接口形状；CSS 变量必须在 tokens.css 定义 |
+| web | api 层类型**只来自 SDK 生成物**，不手写接口形状。派生范式（字段名/可空性全部继承契约，只做 UI 侧语义窄化）：`type WithSignal<T> = Omit<T, "signal"> & { signal: Signal }`；**嵌套字段同样要窄化**（真实事故：顶层窄化后 `credentials` 里的 signal 仍是宽 string，vue-tsc 才是唯一能抓住它的机器——手写类型永远发现不了）。vue-tsc 已收编 verify 第 9 项，字段漂移门禁当场 FAIL。CSS 变量必须在 tokens.css 定义 |
 | desktop | 主进程零业务；离线 = 内嵌 server 组合根，在线 = 契约 + BASE URL |
 | uniapp | 占位期也要走契约 SDK，禁止手写重复类型 |
 
 ## 5. 多端一致性验收（新端/新用例上线门禁）
 
-1. `verify_project.py --project . --test` 全 PASS（结构/纯净/方向/六边形桥/Token）
+1. `verify_project.py --project . --test` 全 PASS（结构/纯净/方向/六边形桥/Token/
+   契约/schema 单源/测试 + web 类型）
 2. 同一用例在所有可用端行为一致：幂等语义、dry_run 语义、错误提示词一致
    （词表单源在 core，端只做文案映射）
-3. 契约新鲜度：`gen:sdk` 重跑后 web 构建通过；破坏性 diff 必须升 API 版本
+3. 契约新鲜度：`gen:sdk` 重跑后 web 编译通过（vue-tsc 拦截字段漂移）；web DTO
+   派生自 SDK 生成物、无手写字段清单；破坏性 diff 必须升 API 版本
 4. 新端准入检查单：三件事之外的代码为 0；与既有端无共享文件；能独立演示
    同一演示链路（`playbook.md` 的演示脚本）
 
@@ -80,6 +82,8 @@ apps/<end>/
 |---|---|
 | 《Java 手册》6.1 应用分层：禁止跨层调用、逆向依赖 | R1/R2/R4（机器验证） |
 | 《Java 手册》6.2 分层领域模型 DO/DTO/VO | R7 模型分层表 |
+| 《手册》折中方案：Service 可操作数据模型、防逐层转换 | R7 折中条款（Out 显式投影 + web 契约派生两底线） |
 | COLA `adapter` 层"薄适配器"原则 | §1 薄壳纪律三件事 |
-| COLA `client` 层 SDK 复用 | §3 契约单源下沉 |
+| COLA `client` 层 SDK 复用 | §3 契约单源下沉 + §4 web 派生范式 |
 | COLA `start` 装配层 | §4 组合根只装配 |
+| COLA"精简版起步、复杂度上升再拆"演进观 | §4 server 拆分阈值（Out >10 或端点按域 >2 组才拆） |

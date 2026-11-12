@@ -4,9 +4,9 @@
 用法:
     python verify_project.py --project /path/to/my-app [--test]
 
-检查项（共 8 项，--test 时加跑第 9 项；全部通过输出 PASS，否则逐条列出 FAIL，
+检查项（共 8 项静态检查，--test 时加跑第 9 项；全部通过输出 PASS，否则逐条列出 FAIL，
 被跳过的项显式输出 SKIP——PASS 行只列真正执行过的检查。唯一例外: 显式传了
---test 而核心测试因缺 uv 被跳过时判 FAIL——"测试没跑"绝不能被当成"测试通过"）:
+--test 而测试因缺 uv/pnpm 被跳过时判 FAIL——"测试没跑"绝不能被当成"测试通过"）:
   1. 结构完整性 —— 必需文件全部存在（含核心/各端/契约流水线/设计决策记录）
   2. 核心纯净性 —— packages/core 只允许 标准库 + 本包自身（白名单制，
      含 importlib.import_module/__import__ 动态导入检测）
@@ -19,8 +19,12 @@
      即 FAIL（无 uv 时 SKIP）
   7. 无空包残留 —— 改名/重构残留的空目录会被 Python 当命名空间包，
      让导入假成功（真实事故: 空目录吞掉台账写入）
-  8. 核心测试通过 —— (--test) 运行 uv run pytest packages/core/tests
-     （缺 uv 时该项 SKIP，但 --test 之下升级为 FAIL）
+  8. schema 单一来源 —— CREATE/ALTER/DROP TABLE 只允许出现在
+     apps/server/migrations/（Alembic）；CLI 自举建表须带"自举镜像"标记
+     且仅限 IF NOT EXISTS
+  9. 测试与 web 类型 —— (--test) uv run pytest packages/core/tests +
+     pnpm exec vue-tsc --noEmit（web DTO 派生自 SDK 契约后，字段漂移在
+     编译期拦截；缺 uv/pnpm 时该项 SKIP，但 --test 之下升级为 FAIL）
 """
 from __future__ import annotations
 
@@ -493,7 +497,7 @@ def check_sdk_freshness(root: Path) -> list[str]:
     except FileNotFoundError:
         return ["契约探针无法启动（uv 不在 PATH）——契约新鲜度不可验证"]
     if r.returncode != 0:
-        tail = (r.stderr.strip().splitlines() or ["导出失败"])[-1]
+        tail = ((r.stderr or "").strip().splitlines() or ["导出失败"])[-1]
         return [f"无法从 server.main 导出 openapi.json,契约新鲜度不可验证: {tail}"]
     # 换行规范化：Windows 下 text=True 已把 \r\n 统一为 \n，这里再兜底一次，
     # 与 generate.mjs 的 .replace(/\r\n/g, "\n") 保持同一份规范化文本口径。
@@ -520,8 +524,29 @@ def check_tests(root: Path) -> list[str]:
         return ["uv 不可用（未安装或不在 PATH）: 无法运行核心测试，请安装 uv 或去掉 --test"]
     except subprocess.TimeoutExpired:
         return ["核心测试超时(600s)——存在卡死的测试？"]
-    tail = (r.stdout + r.stderr).strip().splitlines()[-1:] or [""]
-    return [] if r.returncode == 0 else [f"核心测试未通过: {tail[0]}"]
+    # stdout/stderr capture_output 下理论必非 None，但 Kabao 实测瞬态环境崩溃过
+    # 一次 None + str——门禁崩溃 = 门禁失明，全部 or "" 设防
+    tail = ((r.stdout or "") + (r.stderr or "")).strip().splitlines()[-1:] or [""]
+    if r.returncode != 0:
+        return [f"核心测试未通过: {tail[0]}"]
+    # web 端类型检查（2026-11-12 收编，提炼自 Kabao 实测）：clients.md §4 规定
+    # web DTO 必须派生自 SDK 生成物（Omit<Contract[...]> 范式），字段漂移由
+    # vue-tsc 编译期拦截——pytest 只覆盖 Python 侧，"类型即集成测试"要在门禁
+    # 里真正跑起来才算数。pnpm 探测/执行走 shell 形式（Windows 下 pnpm 是
+    # .cmd shim，参数列表形式解析不到）。
+    if shutil.which("pnpm") is None:
+        return ["pnpm 不可用（未安装或不在 PATH）: 无法运行 web 端 vue-tsc 类型检查"]
+    try:
+        wt = subprocess.run(
+            "pnpm --dir apps/web exec vue-tsc --noEmit",
+            cwd=root, capture_output=True, text=True, timeout=300, shell=True,
+        )
+    except subprocess.TimeoutExpired:
+        return ["web 端类型检查超时(300s)——vue-tsc 卡死？"]
+    if wt.returncode != 0:
+        tails = ((wt.stdout or "") + (wt.stderr or "")).strip().splitlines()[-5:]
+        return ["web 端类型检查未通过（契约漂移?）: " + " | ".join(tails)]
+    return []
 
 
 def check_schema_source(root: Path) -> list[str]:

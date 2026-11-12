@@ -79,6 +79,12 @@ core 一一对应）。
 | VO / 出参 | server `response_model`（Out 后缀）、web 契约类型 |
 禁止把 DO 直接透传到端——出站形状必须显式声明 `response_model`（R-契约）。
 
+**手册折中方案（防逐层转换地狱）**：手册允许 Service/Manager 直接操作数据领域模型
+而不强制中间转换层——对应到本架构 = server Out 投影允许直接从 domain 对象字段映射。
+但两条底线不动：① Out 形状必须显式声明（response_model）；② web 端 DTO 必须
+**派生自 SDK 生成物**、禁止手写字段清单（范式见 clients.md §4），否则契约漂移
+编译期抓不到，"类型即集成测试"（R8）名存实亡。
+
 ### R8 测试策略
 core 用例纯 pytest（毫秒级、零 mock IO）；engine 适配器用 sqlite 内存库；
 契约变更必须重生成 SDK 并让 web 编译通过（类型即集成测试）。
